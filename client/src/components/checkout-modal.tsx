@@ -52,8 +52,18 @@ export default function CheckoutModal({ isOpen, onClose, trip, onPurchaseComplet
         });
         onPurchaseComplete?.();
         onClose();
+      } else if (data.simulated) {
+        // MANEJO DE SIMULACIÓN LOCAL
+        // Si el backend nos dice que fue simulado, redirigimos directo al éxito
+        toast({
+          title: "Pago Simulado (Local)",
+          description: "Compra aprobada automáticamente para pruebas.",
+        });
+        
+        // Construimos la URL de éxito simulando los parámetros que enviaría MP
+        window.location.href = `/payment/success?status=approved&payment_id=simulated&external_reference=${data.purchaseId}`;
       } else {
-        // Redirect to Mercado Pago checkout (sandbox for testing)
+        // FLUJO DE PRODUCCIÓN REAL
         const checkoutUrl = data.sandboxInitPoint || data.initPoint;
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
@@ -119,7 +129,6 @@ export default function CheckoutModal({ isOpen, onClose, trip, onPurchaseComplet
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Order Summary */}
           <Card>
             <CardContent className="pt-6 space-y-4">
               <div>
@@ -133,7 +142,6 @@ export default function CheckoutModal({ isOpen, onClose, trip, onPurchaseComplet
 
               <Separator />
 
-              {/* Features Included */}
               <div className="space-y-2">
                 <p className="text-sm font-medium">Incluye:</p>
                 <ul className="space-y-2 text-sm">
@@ -158,7 +166,6 @@ export default function CheckoutModal({ isOpen, onClose, trip, onPurchaseComplet
 
               <Separator />
 
-              {/* Price */}
               <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
                   <span className="text-sm text-muted-foreground">Precio</span>
@@ -175,7 +182,6 @@ export default function CheckoutModal({ isOpen, onClose, trip, onPurchaseComplet
             </CardContent>
           </Card>
 
-          {/* Trust Badges */}
           <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <Lock className="h-3 w-3" />
@@ -187,7 +193,6 @@ export default function CheckoutModal({ isOpen, onClose, trip, onPurchaseComplet
             </div>
           </div>
 
-          {/* Payment Button */}
           <Button
             onClick={handleCheckout}
             disabled={isProcessing}
@@ -208,7 +213,6 @@ export default function CheckoutModal({ isOpen, onClose, trip, onPurchaseComplet
             )}
           </Button>
 
-          {/* Mercado Pago Badge */}
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <SiMercadopago className="h-4 w-4" />
             <span>Procesado de forma segura por Mercado Pago</span>

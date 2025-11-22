@@ -440,18 +440,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Payment routes with Mercado Pago
+  // Payment routes with Mercado Pago
   app.post("/api/payments/create-preference", isAuthenticated, async (req, res) => {
     try {
       const { tripId, amount, currency = 'UYU' } = req.body;
       const userId = (req.user as any).claims.sub;
 
-      // Get trip details
+      // 1. Validar viaje
       const trip = await storage.getTrip(tripId);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
       }
 
-      // Check if user already purchased this trip
+      // 2. Chequear si ya compró
       const existingPurchase = await storage.getPurchaseByTripAndUser(tripId, userId);
       if (existingPurchase) {
         return res.json({ 
@@ -461,32 +462,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create external reference for tracking
       const externalReference = `tobugo-${tripId}-${userId}-${Date.now()}`;
+      
+      // --- DETECCIÓN DE ENTORNO LOCAL PARA SIMULACIÓN ---
+      const host = req.get('host') || '';
+      const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
 
-      // Create Mercado Pago preference
+      // MODO DESARROLLO LOCAL: Simulamos pago exitoso directamente
+      // Esto evita errores con Mercado Pago por URLs no válidas (localhost)
+      if (isLocal) {
+        console.log("Entorno local detectado: Simulando pago exitoso...");
+        
+        const purchase = await storage.createPurchase({
+          userId,
+          tripId,
+          amount: String(Number(amount) || 99),
+          currency,
+          status: 'approved', // <--- Creamos la compra ya APROBADA
+          mercadoPagoPreferenceId: 'simulated-pref-id-' + Date.now(),
+          mercadoPagoExternalReference: externalReference,
+          paidAt: new Date()
+        });
+
+        return res.json({ 
+          preferenceId: purchase.mercadoPagoPreferenceId,
+          initPoint: null, 
+          sandboxInitPoint: null, 
+          purchaseId: externalReference, // Usamos la referencia para que coincida
+          simulated: true // <--- Bandera para que el frontend sepa qué hacer
+        });
+      }
+      
+      // --- MODO PRODUCCIÓN (Cualquier servidor real) ---
+      const protocol = req.protocol;
+      const baseUrl = `${protocol}://${host}`;
+
+      const claims = (req.user as any).claims;
+      // Manejo flexible de nombres según el proveedor de identidad que uses
+      const firstName = claims.first_name || claims.firstName || "User";
+      const lastName = claims.last_name || claims.lastName || "";
+
       const preference = await createPaymentPreference({
         title: `Descarga de Itinerario: ${trip.title}`,
         description: `Acceso completo al itinerario de ${trip.destination}`,
         quantity: 1,
-        unitPrice: Number(amount) || 99, // Default price in UYU
+        unitPrice: Number(amount) || 99, 
         currency,
         externalReference,
         backUrls: {
-          success: `${req.protocol}://${req.get('host')}/payment/success`,
-          failure: `${req.protocol}://${req.get('host')}/payment/failure`,
-          pending: `${req.protocol}://${req.get('host')}/payment/pending`,
+          success: `${baseUrl}/payment/success`,
+          failure: `${baseUrl}/payment/failure`,
+          pending: `${baseUrl}/payment/pending`,
         },
         autoReturn: 'approved',
-        notificationUrl: `${req.protocol}://${req.get('host')}/api/payments/webhook`,
+        notificationUrl: `${baseUrl}/api/payments/webhook`,
         payer: {
-          email: (req.user as any).claims.email,
-          firstName: (req.user as any).claims.firstName,
-          lastName: (req.user as any).claims.lastName,
+          email: claims.email,
+          firstName: firstName,
+          lastName: lastName,
         }
       });
 
-      // Create purchase record in database
       const purchase = await storage.createPurchase({
         userId,
         tripId,
