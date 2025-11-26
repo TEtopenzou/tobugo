@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPin, Calendar, Share2, Download, Edit3, Trash2, Eye, Plus } from "lucide-react";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast"; // Importamos el hook de notificaciones
+import { generatePDF } from "@/lib/pdf-generator"; // Importamos la función generadora
 
 // Types for user trips
 interface Trip {
@@ -26,6 +28,7 @@ interface Trip {
 
 export default function Itinerarios() {
   const { user } = useAuth();
+  const { toast } = useToast(); // Inicializamos el toast
 
   // Get user's trips
   const { data: userTrips, isLoading: tripsLoading } = useQuery<Trip[]>({
@@ -49,6 +52,39 @@ export default function Itinerarios() {
   const formatBudget = (budget: number | null, currency: string | null) => {
     if (!budget) return "Presupuesto no especificado";
     return `${budget.toLocaleString()} ${currency || 'EUR'}`;
+  };
+
+  // Función para manejar la descarga del PDF
+  const handleDownload = async (trip: Trip) => {
+    if (!trip.itinerary) {
+      toast({
+        title: "Error al descargar",
+        description: "Este viaje no tiene un itinerario generado disponible.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      toast({
+        title: "Generando PDF...",
+        description: "Tu descarga comenzará en breve.",
+      });
+      
+      await generatePDF(trip.itinerary);
+      
+      toast({
+        title: "Descarga completada",
+        description: "El archivo PDF se ha guardado correctamente.",
+      });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Error",
+        description: "Ocurrió un problema al generar el PDF.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -172,7 +208,13 @@ export default function Itinerarios() {
                             </div>
                             
                             <div className="flex space-x-2">
-                              <Button variant="ghost" size="sm" data-testid={`button-download-${trip.id}`}>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                data-testid={`button-download-${trip.id}`}
+                                onClick={() => handleDownload(trip)} // Conectamos la función aquí
+                                title="Descargar PDF"
+                              >
                                 <Download className="w-4 h-4" />
                               </Button>
                               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" data-testid={`button-delete-${trip.id}`}>
@@ -289,7 +331,13 @@ export default function Itinerarios() {
                             </div>
                             
                             <div className="flex space-x-2">
-                              <Button variant="ghost" size="sm" data-testid={`button-download-saved-${trip.id}`}>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                data-testid={`button-download-saved-${trip.id}`}
+                                onClick={() => handleDownload(trip)} // Conectamos la función también aquí
+                                title="Descargar PDF"
+                              >
                                 <Download className="w-4 h-4" />
                               </Button>
                               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" data-testid={`button-remove-saved-${trip.id}`}>
