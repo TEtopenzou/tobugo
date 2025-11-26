@@ -5,29 +5,63 @@ import { z } from "zod";
 import { insertTripSchema, insertChatSessionSchema, insertReviewSchema, insertSavedTripSchema, insertPlaceReviewSchema } from "@shared/schema";
 import { generateItinerary, processConversation, optimizeItinerary, type TravelPreferences } from "./services/gemini";
 import { ObjectPermission } from "./objectAcl";
-import { setupAuth, isAuthenticated, hashPassword } from "./auth"; // Agrega hashPassword
-import passport from "passport"; // Asegúrate de tener este import también
-import { insertUserSchema } from "@shared/schema"; // Asegúrate de importar insertUserSchema
+import { setupAuth, isAuthenticated, hashPassword } from "./auth"; // Importamos hashPassword y auth correcto
+import passport from "passport"; // Necesario para las rutas de login
 import { ObjectStorageService } from "./objectStorage";
 import { createPaymentPreference, getPaymentInfo } from "./mercadopago";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup Replit Auth middleware
+  // Setup Auth middleware
   await setupAuth(app);
   
   // Initialize object storage service
   const objectStorage = new ObjectStorageService();
 
-  // Auth routes
+  // --- RUTAS DE AUTENTICACIÓN (Login/Registro) ---
+
+  app.post("/api/register", async (req, res, next) => {
+    try {
+      const existingUser = await storage.getUserByUsername(req.body.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "El nombre de usuario ya existe" });
+      }
+
+      const hashedPassword = await hashPassword(req.body.password);
+      
+      const newUser = await storage.createUser({
+        ...req.body,
+        password: hashedPassword,
+        email: req.body.email || `${req.body.username}@example.com`, 
+        firstName: req.body.username,
+        lastName: "", 
+        profileImageUrl: "",
+      });
+
+      req.login(newUser, (err) => {
+        if (err) return next(err);
+        const { password, ...userWithoutPassword } = newUser;
+        res.status(201).json(userWithoutPassword);
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ message: "Error al registrar usuario" });
+    }
+  });
+
+  app.post("/api/login", passport.authenticate("local"), (req, res) => {
+    const user = req.user as any;
+    const { password, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
+  });
+
+  // Get current user info
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      // FIX: Usamos el usuario directamente de la sesión (ya deserializado)
+      const user = req.user; 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      // Sanitize response by omitting sensitive fields
       const { password, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -43,7 +77,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
       const { password, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -63,7 +96,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         travelStyle: req.query.travelStyle as string,
       };
       
-      // Remove undefined values
       const cleanFilters = Object.fromEntries(
         Object.entries(filters).filter(([_, v]) => v !== undefined)
       );
@@ -78,7 +110,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current user's trips (authenticated)
   app.get("/api/trips/user", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      // FIX: req.user.id en lugar de claims.sub
+      const userId = (req.user as any).id;
       const trips = await storage.getTripsByUserId(userId);
       res.json(trips);
     } catch (error) {
@@ -88,10 +121,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/trips/user/:userId", isAuthenticated, async (req, res) => {
     try {
-      const requestingUserId = (req.user as any).claims.sub;
+      // FIX: req.user.id
+      const requestingUserId = (req.user as any).id;
       const targetUserId = req.params.userId;
       
-      // Security: Only allow users to access their own trips
       if (requestingUserId !== targetUserId) {
         return res.status(403).json({ message: "Forbidden: You can only access your own trips" });
       }
@@ -147,7 +180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Chat session routes (protected)
+  // Chat session routes
   app.get("/api/chat/user/:userId", isAuthenticated, async (req, res) => {
     try {
       const sessions = await storage.getChatSessionsByUserId(req.params.userId);
@@ -198,17 +231,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       messages.push(newMessage);
-
-      // Get accumulated preferences from previous interactions
       const currentPreferences = session.extractedPreferences || {};
 
-      // Process with Gemini AI, passing accumulated preferences as context
       const aiResponse = await processConversation(
         messages.map(m => ({ role: m.role, content: m.content })),
         { preferences: currentPreferences }
       );
-
-      console.log("AI Response:", JSON.stringify(aiResponse, null, 2));
 
       const aiMessage = {
         id: Math.random().toString(36),
@@ -219,7 +247,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       messages.push(aiMessage);
 
-      // Merge new preferences with existing ones (accumulate)
       const newPreferences = aiResponse.extractedPreferences ?? {};
       const mergedPreferences = {
         ...currentPreferences,
@@ -231,9 +258,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extractedPreferences: mergedPreferences,
         status: aiResponse.shouldGenerateItinerary ? 'completed' : 'active'
       });
-
-      console.log("Extracted preferences (new):", JSON.stringify(newPreferences, null, 2));
-      console.log("Merged preferences (total):", JSON.stringify(mergedPreferences, null, 2));
 
       res.json({
         session: updatedSession,
@@ -268,7 +292,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
         budget: z.union([z.number(), z.string()]).optional().transform((val) => {
           if (typeof val === 'string') {
-            // Extract numbers from strings like "$1,000 - $1,500 USD" or "$1500"
             const numbers = val.match(/\d+(?:,\d+)*/g);
             if (numbers) {
               const numericValue = parseInt(numbers[0].replace(/,/g, ''), 10);
@@ -303,49 +326,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const parsedPreferences = preferencesSchema.parse(req.body);
       
-      // Smart date calculation preserving provided dates
       let startDate = parsedPreferences.startDate;
       let endDate = parsedPreferences.endDate;
       const duration = parsedPreferences.duration || parsedPreferences.days || 7;
       
       if (!startDate && !endDate) {
-        // No dates provided - generate defaults
         const today = new Date();
         const start = new Date(today);
-        start.setDate(today.getDate() + 7); // Start 7 days from now
-        
+        start.setDate(today.getDate() + 7); 
         const end = new Date(start);
         end.setDate(start.getDate() + duration - 1);
-        
         startDate = start.toISOString().split('T')[0];
         endDate = end.toISOString().split('T')[0];
       } else if (startDate && !endDate) {
-        // Start date provided, calculate end date
         const start = new Date(startDate);
-        if (isNaN(start.getTime())) {
-          throw new Error("Invalid start date format");
-        }
         const end = new Date(start);
         end.setDate(start.getDate() + duration - 1);
         endDate = end.toISOString().split('T')[0];
       } else if (!startDate && endDate) {
-        // End date provided, calculate start date
         const end = new Date(endDate);
-        if (isNaN(end.getTime())) {
-          throw new Error("Invalid end date format");
-        }
         const start = new Date(end);
         start.setDate(end.getDate() - duration + 1);
         startDate = start.toISOString().split('T')[0];
       }
-      // If both dates provided, use them as-is
       
-      // Validate that we have valid dates
       if (!startDate || !endDate) {
         throw new Error("Unable to determine trip dates");
       }
       
-      // Ensure dates are strings (TypeScript safety)
       const finalPreferences = {
         ...parsedPreferences,
         startDate,
@@ -353,7 +361,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const itinerary = await generateItinerary(finalPreferences);
-      
       res.json(itinerary);
     } catch (error: any) {
       console.error("Itinerary generation error:", error);
@@ -365,7 +372,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { itinerary, feedback } = req.body;
       const optimizedItinerary = await optimizeItinerary(itinerary, feedback);
-      
       res.json(optimizedItinerary);
     } catch (error) {
       res.status(400).json({ message: "Failed to optimize itinerary", error });
@@ -401,11 +407,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Saved trips routes (protected)
-  // Get current user's saved trips (authenticated)
+  // Saved trips routes
   app.get("/api/trips/saved", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      // FIX: req.user.id
+      const userId = (req.user as any).id;
       const savedTrips = await storage.getSavedTripsByUserId(userId);
       res.json(savedTrips);
     } catch (error) {
@@ -441,20 +447,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Payment routes with Mercado Pago
-  // Payment routes with Mercado Pago
+  // --- PAYMENT ROUTES (FIXED FOR LOCAL AUTH) ---
   app.post("/api/payments/create-preference", isAuthenticated, async (req, res) => {
     try {
       const { tripId, amount, currency = 'UYU' } = req.body;
-      const userId = (req.user as any).claims.sub;
+      // FIX: Acceso directo a req.user.id (sin .claims)
+      const user = req.user as any;
+      const userId = user.id;
 
-      // 1. Validar viaje
       const trip = await storage.getTrip(tripId);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
       }
 
-      // 2. Chequear si ya compró
       const existingPurchase = await storage.getPurchaseByTripAndUser(tripId, userId);
       if (existingPurchase) {
         return res.json({ 
@@ -465,22 +470,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const externalReference = `tobugo-${tripId}-${userId}-${Date.now()}`;
-      
-      // --- DETECCIÓN DE ENTORNO LOCAL PARA SIMULACIÓN ---
       const host = req.get('host') || '';
       const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
 
-      // MODO DESARROLLO LOCAL: Simulamos pago exitoso directamente
-      // Esto evita errores con Mercado Pago por URLs no válidas (localhost)
+      // SIMULACIÓN EN LOCAL
       if (isLocal) {
         console.log("Entorno local detectado: Simulando pago exitoso...");
-        
         const purchase = await storage.createPurchase({
           userId,
           tripId,
           amount: String(Number(amount) || 99),
           currency,
-          status: 'approved', // <--- Creamos la compra ya APROBADA
+          status: 'approved', 
           mercadoPagoPreferenceId: 'simulated-pref-id-' + Date.now(),
           mercadoPagoExternalReference: externalReference,
           paidAt: new Date()
@@ -490,19 +491,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           preferenceId: purchase.mercadoPagoPreferenceId,
           initPoint: null, 
           sandboxInitPoint: null, 
-          purchaseId: externalReference, // Usamos la referencia para que coincida
-          simulated: true // <--- Bandera para que el frontend sepa qué hacer
+          purchaseId: externalReference,
+          simulated: true 
         });
       }
-      
-      // --- MODO PRODUCCIÓN (Cualquier servidor real) ---
+
+      // MODO PRODUCCIÓN
       const protocol = req.protocol;
       const baseUrl = `${protocol}://${host}`;
 
-      const claims = (req.user as any).claims;
-      // Manejo flexible de nombres según el proveedor de identidad que uses
-      const firstName = claims.first_name || claims.firstName || "User";
-      const lastName = claims.last_name || claims.lastName || "";
+      // FIX: Datos del pagador desde el objeto user local
+      const firstName = user.firstName || user.username || "User";
+      const lastName = user.lastName || "";
+      const email = user.email || "no-email@example.com";
 
       const preference = await createPaymentPreference({
         title: `Descarga de Itinerario: ${trip.title}`,
@@ -519,7 +520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         autoReturn: 'approved',
         notificationUrl: `${baseUrl}/api/payments/webhook`,
         payer: {
-          email: claims.email,
+          email: email,
           firstName: firstName,
           lastName: lastName,
         }
@@ -547,33 +548,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Webhook to receive Mercado Pago notifications
   app.post("/api/payments/webhook", async (req, res) => {
     try {
       const { type, data } = req.body;
-
-      // Only process payment notifications
       if (type === 'payment') {
         const paymentId = data.id;
-        
-        // Get payment information from Mercado Pago
         const paymentInfo = await getPaymentInfo(paymentId);
-        
         if (paymentInfo) {
           const externalReference = paymentInfo.external_reference;
           const status = paymentInfo.status;
-
-          // Map Mercado Pago status to our status
           let purchaseStatus = 'pending';
-          if (status === 'approved') {
-            purchaseStatus = 'approved';
-          } else if (status === 'rejected') {
-            purchaseStatus = 'rejected';
-          } else if (status === 'cancelled') {
-            purchaseStatus = 'cancelled';
-          }
+          if (status === 'approved') purchaseStatus = 'approved';
+          else if (status === 'rejected') purchaseStatus = 'rejected';
+          else if (status === 'cancelled') purchaseStatus = 'cancelled';
 
-          // Update purchase in database
           if (externalReference) {
             await storage.updatePurchaseByExternalReference(externalReference, {
               status: purchaseStatus,
@@ -584,7 +572,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-
       res.status(200).json({ received: true });
     } catch (error: any) {
       console.error("Webhook processing error:", error);
@@ -592,14 +579,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Check if user has purchased a trip
   app.get("/api/payments/check/:tripId", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      // FIX: req.user.id
+      const userId = (req.user as any).id;
       const tripId = req.params.tripId;
-
       const purchase = await storage.getPurchaseByTripAndUser(tripId, userId);
-      
       res.json({ 
         hasPurchased: !!purchase,
         purchase: purchase || null
@@ -609,12 +594,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user's purchase history
   app.get("/api/payments/history", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      // FIX: req.user.id
+      const userId = (req.user as any).id;
       const purchases = await storage.getPurchasesByUserId(userId);
-      
       res.json(purchases);
     } catch (error) {
       res.status(500).json({ message: "Failed to get purchase history", error });
@@ -622,29 +606,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Place Reviews routes
-  // Get all place reviews (public)
   app.get("/api/place-reviews", async (req, res) => {
     try {
       const location = req.query.location as string;
       const userId = req.query.userId as string;
-      
       let reviews;
       if (location) {
         reviews = await storage.getPlaceReviewsByLocation(location);
       } else if (userId) {
         reviews = await storage.getPlaceReviewsByUserId(userId);
       } else {
-        // Default: Get recent reviews
         reviews = await storage.getPlaceReviewsByLocation("");
       }
-      
       res.json(reviews);
     } catch (error) {
       res.status(500).json({ message: "Failed to get place reviews", error });
     }
   });
 
-  // Get single place review (public)
   app.get("/api/place-reviews/:id", async (req, res) => {
     try {
       const review = await storage.getPlaceReview(req.params.id);
@@ -657,10 +636,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create place review (protected)
   app.post("/api/place-reviews", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      // FIX: req.user.id
+      const userId = (req.user as any).id;
       const reviewData = insertPlaceReviewSchema.parse({ ...req.body, userId });
       const review = await storage.createPlaceReview(reviewData);
       res.json(review);
@@ -669,21 +648,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update place review (protected)
   app.put("/api/place-reviews/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      // FIX: req.user.id
+      const userId = (req.user as any).id;
       const existingReview = await storage.getPlaceReview(req.params.id);
-      
       if (!existingReview) {
         return res.status(404).json({ message: "Place review not found" });
       }
-      
-      // SECURITY: Verify ownership
       if (existingReview.userId !== userId) {
         return res.status(403).json({ message: "Forbidden: You can only update your own reviews" });
       }
-      
       const reviewData = insertPlaceReviewSchema.partial().omit({ userId: true }).parse(req.body);
       const review = await storage.updatePlaceReview(req.params.id, reviewData);
       res.json(review);
@@ -692,21 +667,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete place review (protected)
   app.delete("/api/place-reviews/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      // FIX: req.user.id
+      const userId = (req.user as any).id;
       const existingReview = await storage.getPlaceReview(req.params.id);
-      
       if (!existingReview) {
         return res.status(404).json({ message: "Place review not found" });
       }
-      
-      // SECURITY: Verify ownership
       if (existingReview.userId !== userId) {
         return res.status(403).json({ message: "Forbidden: You can only delete your own reviews" });
       }
-      
       await storage.deletePlaceReview(req.params.id);
       res.json({ message: "Place review deleted successfully" });
     } catch (error) {
@@ -714,19 +685,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Media upload URL generation (protected)
+  // Media upload routes
   app.post("/api/media/upload-url", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      // FIX: req.user.id
+      const userId = (req.user as any).id;
       const { isPublic = false } = req.body;
-      
-      // Generate upload URL
       const uploadUrl = await objectStorage.getObjectEntityUploadURL();
-      
-      // Extract object path from upload URL for later reference
-      const urlObj = new URL(uploadUrl);
+      const urlObj = new URL(uploadUrl, `http://${req.headers.host}`);
       const objectPath = urlObj.pathname;
-      
       res.json({ 
         uploadUrl,
         objectPath,
@@ -735,24 +702,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Error generating upload URL:", error);
-      
-      // Graceful error handling for missing config
-      if (error.message && error.message.includes("not set")) {
-        return res.status(503).json({ 
-          message: "Object storage not configured", 
-          error: "Please configure object storage environment variables",
-          details: error.message
-        });
-      }
-      
       res.status(500).json({ message: "Failed to generate upload URL", error: error.message || error });
     }
   });
 
-  // Attach media to place review with ACL policy (protected)
   app.post("/api/place-reviews/:id/media", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      // FIX: req.user.id
+      const userId = (req.user as any).id;
       const reviewId = req.params.id;
       const { objectPath, isPublic = false } = req.body;
       
@@ -760,17 +717,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Object path is required" });
       }
       
-      // Verify ownership of the place review
       const existingReview = await storage.getPlaceReview(reviewId);
       if (!existingReview) {
         return res.status(404).json({ message: "Place review not found" });
       }
-      
       if (existingReview.userId !== userId) {
         return res.status(403).json({ message: "Forbidden: You can only attach media to your own reviews" });
       }
       
-      // Set ACL policy for the uploaded object
       const aclPolicy = {
         visibility: isPublic ? "public" : "private" as "public" | "private",
         owner: userId,
@@ -778,11 +732,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const normalizedPath = await objectStorage.trySetObjectEntityAclPolicy(objectPath, aclPolicy);
-      
-      // Update place review with new media URL
       const currentMediaUrls = existingReview.mediaUrls || [];
       const updatedMediaUrls = [...currentMediaUrls, normalizedPath];
-      
       const updatedReview = await storage.updatePlaceReview(reviewId, {
         mediaUrls: updatedMediaUrls
       });
@@ -794,65 +745,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Error attaching media to place review:", error);
-      
-      if (error.message && error.message.includes("not set")) {
-        return res.status(503).json({ 
-          message: "Object storage not configured",
-          error: "Please configure object storage environment variables"
-        });
-      }
-      
       res.status(500).json({ message: "Failed to attach media", error: error.message || error });
     }
   });
 
-  // Media serving route with ACL enforcement (public)
   app.get("/objects/*", async (req, res) => {
     try {
-      // Graceful handling for missing object storage config
-      try {
-        // Use req.path to get full path including /objects/ prefix
-        const file = await objectStorage.getObjectEntityFile(req.path);
-        
-        // Get user ID from authenticated request (optional)
-        const userId = req.user ? (req.user as any).claims.sub : undefined;
-        
-        // CRITICAL: Enforce ACL before serving object
-        const canRead = await objectStorage.canAccessObjectEntity({
-          userId,
-          objectFile: file,
-          requestedPermission: ObjectPermission.READ
-        });
-        
-        if (!canRead) {
-          console.log(`ACL: Access denied for user ${userId || 'anonymous'} to object ${req.path}`);
-          return res.status(403).json({ message: "Forbidden" });
-        }
-        
-        // ACL check passed - serve object
-        await objectStorage.downloadObject(file, res);
-      } catch (configError: any) {
-        if (configError.message && configError.message.includes("not set")) {
-          console.error("Object storage config error:", configError.message);
-          return res.status(503).json({ 
-            message: "Object storage not configured",
-            error: "Service temporarily unavailable"
-          });
-        }
-        throw configError;
+      const file = await objectStorage.getObjectEntityFile(req.path);
+      // FIX: req.user.id (opcional)
+      const userId = req.user ? (req.user as any).id : undefined;
+      
+      const canRead = await objectStorage.canAccessObjectEntity({
+        userId,
+        objectFile: file,
+        requestedPermission: ObjectPermission.READ
+      });
+      
+      if (!canRead) {
+        console.log(`ACL: Access denied for user ${userId || 'anonymous'} to object ${req.path}`);
+        return res.status(403).json({ message: "Forbidden" });
       }
+      await objectStorage.downloadObject(file, res);
     } catch (error: any) {
-      // Properly handle ObjectNotFoundError
       if (error.name === "ObjectNotFoundError") {
         return res.status(404).json({ message: "Object not found" });
       }
-      
       console.error("Error serving object:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   });
 
-  // Community statistics routes (public)
   app.get("/api/community/stats", async (req, res) => {
     try {
       const stats = await storage.getCommunityStats();
@@ -863,7 +785,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Recent reviews routes (public)
   app.get("/api/reviews/recent", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
@@ -875,17 +796,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update review helpful count (protected)
   app.post("/api/reviews/:reviewId/helpful", isAuthenticated, async (req, res) => {
     try {
       const reviewId = req.params.reviewId;
-      const userId = (req.user as any).claims.sub;
+      // FIX: req.user.id
+      const userId = (req.user as any).id;
       const review = await storage.incrementReviewHelpful(reviewId, userId);
-      
       if (review === null) {
         return res.status(409).json({ message: "You have already marked this review as helpful" });
       }
-      
       res.json(review);
     } catch (error) {
       console.error("Error updating review helpful count:", error);
@@ -893,16 +812,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // RUTA DE SUBIDA DE ARCHIVOS LOCAL
   app.put("/api/uploads/:id", isAuthenticated, (req, res) => {
-    const objectStorage = new ObjectStorageService();
-    // Accedemos al directorio de subida de forma segura
     const uploadDir = require("path").resolve(process.cwd(), "uploads");
     const filePath = require("path").join(uploadDir, req.params.id);
-    
-    // Creamos un stream de escritura
     const fileStream = require("fs").createWriteStream(filePath);
 
-    // "Pipeamos" (conectamos) la petición directamente al archivo
     req.pipe(fileStream);
 
     fileStream.on('finish', () => {
@@ -913,47 +828,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("File upload error:", err);
       res.status(500).json({ error: "Upload failed" });
     });
-  });
-
-  app.post("/api/register", async (req, res, next) => {
-    try {
-      // Validar si el usuario ya existe
-      const existingUser = await storage.getUserByUsername(req.body.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "El nombre de usuario ya existe" });
-      }
-
-      // Crear nuevo usuario con contraseña encriptada
-      const hashedPassword = await hashPassword(req.body.password);
-      
-      const newUser = await storage.createUser({
-        ...req.body,
-        password: hashedPassword,
-        // Usamos el username también como email temporal si no se provee, o puedes pedirlo en el form
-        email: req.body.email || `${req.body.username}@example.com`, 
-        firstName: req.body.username,
-        lastName: "", 
-        profileImageUrl: "", // Opcional
-      });
-
-      // Loguear automáticamente al usuario después del registro
-      req.login(newUser, (err) => {
-        if (err) return next(err);
-        // Remover password antes de enviar respuesta
-        const { password, ...userWithoutPassword } = newUser;
-        res.status(201).json(userWithoutPassword);
-      });
-    } catch (error) {
-      console.error("Registration error:", error);
-      res.status(500).json({ message: "Error al registrar usuario" });
-    }
-  });
-
-  // Login de usuarios existentes
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    const user = req.user as any;
-    const { password, ...userWithoutPassword } = user;
-    res.json(userWithoutPassword);
   });
 
   const httpServer = createServer(app);
