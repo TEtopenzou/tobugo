@@ -5,7 +5,7 @@ import { z } from "zod";
 import { insertTripSchema, insertChatSessionSchema, insertReviewSchema, insertSavedTripSchema, insertPlaceReviewSchema } from "@shared/schema";
 import { generateItinerary, processConversation, optimizeItinerary, type TravelPreferences } from "./services/gemini";
 import { ObjectPermission } from "./objectAcl";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { ObjectStorageService } from "./objectStorage";
 import { createPaymentPreference, getPaymentInfo } from "./mercadopago";
 
