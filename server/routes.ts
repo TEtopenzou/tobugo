@@ -5,7 +5,9 @@ import { z } from "zod";
 import { insertTripSchema, insertChatSessionSchema, insertReviewSchema, insertSavedTripSchema, insertPlaceReviewSchema } from "@shared/schema";
 import { generateItinerary, processConversation, optimizeItinerary, type TravelPreferences } from "./services/gemini";
 import { ObjectPermission } from "./objectAcl";
-import { setupAuth, isAuthenticated } from "./auth";
+import { setupAuth, isAuthenticated, hashPassword } from "./auth"; // Agrega hashPassword
+import passport from "passport"; // Asegúrate de tener este import también
+import { insertUserSchema } from "@shared/schema"; // Asegúrate de importar insertUserSchema
 import { ObjectStorageService } from "./objectStorage";
 import { createPaymentPreference, getPaymentInfo } from "./mercadopago";
 
@@ -911,6 +913,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("File upload error:", err);
       res.status(500).json({ error: "Upload failed" });
     });
+  });
+
+  app.post("/api/register", async (req, res, next) => {
+    try {
+      // Validar si el usuario ya existe
+      const existingUser = await storage.getUserByUsername(req.body.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "El nombre de usuario ya existe" });
+      }
+
+      // Crear nuevo usuario con contraseña encriptada
+      const hashedPassword = await hashPassword(req.body.password);
+      
+      const newUser = await storage.createUser({
+        ...req.body,
+        password: hashedPassword,
+        // Usamos el username también como email temporal si no se provee, o puedes pedirlo en el form
+        email: req.body.email || `${req.body.username}@example.com`, 
+        firstName: req.body.username,
+        lastName: "", 
+        profileImageUrl: "", // Opcional
+      });
+
+      // Loguear automáticamente al usuario después del registro
+      req.login(newUser, (err) => {
+        if (err) return next(err);
+        // Remover password antes de enviar respuesta
+        const { password, ...userWithoutPassword } = newUser;
+        res.status(201).json(userWithoutPassword);
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ message: "Error al registrar usuario" });
+    }
+  });
+
+  // Login de usuarios existentes
+  app.post("/api/login", passport.authenticate("local"), (req, res) => {
+    const user = req.user as any;
+    const { password, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
   });
 
   const httpServer = createServer(app);

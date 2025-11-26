@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import { ArrowRight, Sparkles, Users, MapPin, Star, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import AuthModal from "@/components/auth-modal"; // Importamos el modal
 import userVideo1 from "@assets/230575_small_1757936852080.mp4";
 import userVideo2 from "@assets/12584129_1080_1920_60fps_1757937267745.mp4";
 import userVideo3 from "@assets/16119043-hd_1080_1920_30fps (1)_1757937270131.mp4";
@@ -16,6 +17,7 @@ const videoSources = [
 export function VideoHero() {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // Estado para el modal
   const [, setLocation] = useLocation();
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -23,7 +25,8 @@ export function VideoHero() {
     if (isAuthenticated) {
       setLocation("/chat");
     } else {
-      window.location.href = "/api/login";
+      // Si no está logueado, abrimos el modal en lugar de redirigir a /api/login
+      setIsAuthModalOpen(true);
     }
   };
 
@@ -199,6 +202,13 @@ export function VideoHero() {
           />
         ))}
       </div>
+
+      {/* Componente Modal de Autenticación para este botón específico */}
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={() => setLocation("/chat")} 
+      />
     </section>
   );
 }
