@@ -1,12 +1,12 @@
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 
 if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
-  throw new Error('Missing required Mercado Pago access token: MERCADOPAGO_ACCESS_TOKEN');
+  console.warn('Warning: MERCADOPAGO_ACCESS_TOKEN not set. Payment features will fail.');
 }
 
 // Initialize Mercado Pago SDK
 export const client = new MercadoPagoConfig({ 
-  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
+  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN || '',
   options: { timeout: 5000 }
 });
 
@@ -36,26 +36,49 @@ export interface CreatePreferenceParams {
 
 export async function createPaymentPreference(params: CreatePreferenceParams) {
   try {
-    const preference = await preferenceClient.create({
-      body: {
-        items: [
-          {
-            id: params.externalReference,
-            title: params.title,
-            description: params.description,
-            quantity: params.quantity,
-            unit_price: params.unitPrice,
-            currency_id: params.currency,
-          }
-        ],
-        back_urls: params.backUrls,
-        auto_return: params.autoReturn || 'approved',
-        external_reference: params.externalReference,
-        notification_url: params.notificationUrl,
-        payer: params.payer,
-        statement_descriptor: 'TOBUGO',
-      }
-    });
+    // Construimos el body asegurándonos de no enviar undefined en campos críticos
+    const preferenceBody: any = {
+      items: [
+        {
+          id: params.externalReference,
+          title: params.title,
+          description: params.description,
+          quantity: params.quantity,
+          unit_price: params.unitPrice,
+          currency_id: params.currency,
+        }
+      ],
+      back_urls: {
+        success: params.backUrls.success,
+        failure: params.backUrls.failure,
+        pending: params.backUrls.pending,
+      },
+      external_reference: params.externalReference,
+      statement_descriptor: 'TOBUGO',
+    };
+
+    // Solo agregamos auto_return si está definido (para evitar error en localhost)
+    if (params.autoReturn) {
+      preferenceBody.auto_return = params.autoReturn;
+    }
+
+    // Solo agregamos notification_url si está definido (para evitar error en localhost)
+    if (params.notificationUrl) {
+      preferenceBody.notification_url = params.notificationUrl;
+    }
+
+    // Mapeo de Payer
+    if (params.payer) {
+      preferenceBody.payer = {
+        email: params.payer.email,
+        name: params.payer.firstName,
+        surname: params.payer.lastName
+      };
+    }
+
+    console.log("Enviando preferencia a Mercado Pago:", JSON.stringify(preferenceBody, null, 2));
+
+    const preference = await preferenceClient.create({ body: preferenceBody });
 
     return {
       id: preference.id,
