@@ -1,14 +1,12 @@
-import { File } from "@google-cloud/storage";
+import fs from "fs/promises";
+import path from "path";
 
-const ACL_POLICY_METADATA_KEY = "custom:aclPolicy";
-
-// The type of the access group.
+// --- Tipos y Interfaces (Sin cambios) ---
 export enum ObjectAccessGroupType {
   USER = "user",
   TRIP_COLLABORATOR = "trip_collaborator"
 }
 
-// The logic user group that can access the object.
 export interface ObjectAccessGroup {
   type: ObjectAccessGroupType;
   id: string;
@@ -24,56 +22,44 @@ export interface ObjectAclRule {
   permission: ObjectPermission;
 }
 
-// The ACL policy of the object.
 export interface ObjectAclPolicy {
   owner: string;
   visibility: "public" | "private";
   aclRules?: Array<ObjectAclRule>;
 }
 
-// Check if the requested permission is allowed based on the granted permission.
+// Lógica de Permisos
 function isPermissionAllowed(
   requested: ObjectPermission,
   granted: ObjectPermission,
 ): boolean {
-  // Users granted with read or write permissions can read the object.
   if (requested === ObjectPermission.READ) {
     return [ObjectPermission.READ, ObjectPermission.WRITE].includes(granted);
   }
-
-  // Only users granted with write permissions can write the object.
   return granted === ObjectPermission.WRITE;
 }
 
-// The base class for all access groups.
 abstract class BaseObjectAccessGroup implements ObjectAccessGroup {
   constructor(
     public readonly type: ObjectAccessGroupType,
     public readonly id: string,
   ) {}
-
-  // Check if the user is a member of the group.
   public abstract hasMember(userId: string): Promise<boolean>;
 }
 
-// Simple user access group implementation
 class UserAccessGroup extends BaseObjectAccessGroup {
   public async hasMember(userId: string): Promise<boolean> {
     return this.id === userId;
   }
 }
 
-// Trip collaborator access group implementation
 class TripCollaboratorAccessGroup extends BaseObjectAccessGroup {
   public async hasMember(userId: string): Promise<boolean> {
-    // For now, simplified logic - in production you'd check trip membership
-    return false; // Simplified for this implementation
+    return false; // Simplificado para local
   }
 }
 
-function createObjectAccessGroup(
-  group: ObjectAccessGroup,
-): BaseObjectAccessGroup {
+function createObjectAccessGroup(group: ObjectAccessGroup): BaseObjectAccessGroup {
   switch (group.type) {
     case ObjectAccessGroupType.USER:
       return new UserAccessGroup(group.type, group.id);
@@ -84,52 +70,60 @@ function createObjectAccessGroup(
   }
 }
 
-// Sets the ACL policy to the object metadata.
+// --- IMPLEMENTACIÓN DE SISTEMA DE ARCHIVOS LOCAL ---
+
+// Ayudante para obtener la ruta del archivo de metadatos (.meta.json)
+function getMetaPath(filePath: string): string {
+  return `${filePath}.meta.json`;
+}
+
+// Guarda la política ACL en un archivo JSON local junto al archivo original
 export async function setObjectAclPolicy(
-  objectFile: File,
+  filePath: string,
   aclPolicy: ObjectAclPolicy,
 ): Promise<void> {
-  const [exists] = await objectFile.exists();
-  if (!exists) {
-    throw new Error(`Object not found: ${objectFile.name}`);
+  try {
+    // Verificamos si el archivo existe antes de guardar metadatos
+    await fs.access(filePath); 
+    const metaPath = getMetaPath(filePath);
+    await fs.writeFile(metaPath, JSON.stringify(aclPolicy, null, 2));
+  } catch (error) {
+    // Si el archivo no existe o falla la escritura, lanzamos error
+    throw new Error(`Object not found or error writing metadata: ${filePath}`);
   }
-
-  await objectFile.setMetadata({
-    metadata: {
-      [ACL_POLICY_METADATA_KEY]: JSON.stringify(aclPolicy),
-    },
-  });
 }
 
-// Gets the ACL policy from the object metadata.
+// Lee la política ACL desde el archivo JSON local
 export async function getObjectAclPolicy(
-  objectFile: File,
+  filePath: string,
 ): Promise<ObjectAclPolicy | null> {
-  const [metadata] = await objectFile.getMetadata();
-  const aclPolicy = metadata?.metadata?.[ACL_POLICY_METADATA_KEY];
-  if (!aclPolicy) {
-    return null;
+  try {
+    const metaPath = getMetaPath(filePath);
+    const data = await fs.readFile(metaPath, 'utf-8');
+    return JSON.parse(data) as ObjectAclPolicy;
+  } catch (error) {
+    return null; // Si no hay archivo meta, asumimos sin política
   }
-  return JSON.parse(aclPolicy as string);
 }
 
-// Checks if the user can access the object.
+// Verifica si el usuario tiene acceso (leyendo el JSON local)
 export async function canAccessObject({
   userId,
-  objectFile,
+  objectFile, // En modo local, esto es la ruta del archivo (string)
   requestedPermission,
 }: {
   userId?: string;
-  objectFile: File;
+  objectFile: string;
   requestedPermission: ObjectPermission;
 }): Promise<boolean> {
-  // When this function is called, the acl policy is required.
   const aclPolicy = await getObjectAclPolicy(objectFile);
+  
+  // Si no hay política, denegar por defecto (o permitir si prefieres abierto en dev)
   if (!aclPolicy) {
-    return false;
+    return false; 
   }
 
-  // Public objects are always accessible for read.
+  // Acceso público
   if (
     aclPolicy.visibility === "public" &&
     requestedPermission === ObjectPermission.READ
@@ -137,17 +131,17 @@ export async function canAccessObject({
     return true;
   }
 
-  // Access control requires the user id.
+  // Requiere usuario
   if (!userId) {
     return false;
   }
 
-  // The owner of the object can always access it.
+  // Dueño siempre tiene acceso
   if (aclPolicy.owner === userId) {
     return true;
   }
 
-  // Go through the ACL rules to check if the user has the required permission.
+  // Verificar reglas específicas
   for (const rule of aclPolicy.aclRules || []) {
     const accessGroup = createObjectAccessGroup(rule.group);
     if (

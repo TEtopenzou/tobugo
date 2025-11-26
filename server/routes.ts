@@ -891,6 +891,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/uploads/:id", isAuthenticated, (req, res) => {
+    const objectStorage = new ObjectStorageService();
+    // Accedemos al directorio de subida de forma segura
+    const uploadDir = require("path").resolve(process.cwd(), "uploads");
+    const filePath = require("path").join(uploadDir, req.params.id);
+    
+    // Creamos un stream de escritura
+    const fileStream = require("fs").createWriteStream(filePath);
+
+    // "Pipeamos" (conectamos) la petición directamente al archivo
+    req.pipe(fileStream);
+
+    fileStream.on('finish', () => {
+      res.status(200).json({ success: true });
+    });
+
+    fileStream.on('error', (err: any) => {
+      console.error("File upload error:", err);
+      res.status(500).json({ error: "Upload failed" });
+    });
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
