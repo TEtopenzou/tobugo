@@ -5,7 +5,7 @@ import { z } from "zod";
 import { insertTripSchema, insertChatSessionSchema, insertReviewSchema, insertSavedTripSchema, insertPlaceReviewSchema } from "@shared/schema";
 import { generateItinerary, processConversation, optimizeItinerary, type TravelPreferences } from "./services/gemini";
 import { ObjectPermission } from "./objectAcl";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { ObjectStorageService } from "./objectStorage";
 import { createPaymentPreference, getPaymentInfo } from "./mercadopago";
 
@@ -889,6 +889,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error updating review helpful count:", error);
       res.status(500).json({ message: "Failed to update review helpful count", error });
     }
+  });
+
+  app.put("/api/uploads/:id", isAuthenticated, (req, res) => {
+    const objectStorage = new ObjectStorageService();
+    // Accedemos al directorio de subida de forma segura
+    const uploadDir = require("path").resolve(process.cwd(), "uploads");
+    const filePath = require("path").join(uploadDir, req.params.id);
+    
+    // Creamos un stream de escritura
+    const fileStream = require("fs").createWriteStream(filePath);
+
+    // "Pipeamos" (conectamos) la petición directamente al archivo
+    req.pipe(fileStream);
+
+    fileStream.on('finish', () => {
+      res.status(200).json({ success: true });
+    });
+
+    fileStream.on('error', (err: any) => {
+      console.error("File upload error:", err);
+      res.status(500).json({ error: "Upload failed" });
+    });
   });
 
   const httpServer = createServer(app);

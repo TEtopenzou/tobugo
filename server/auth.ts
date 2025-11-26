@@ -7,39 +7,44 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-// Validamos variable de entorno, pero permitimos un valor por defecto para desarrollo local
-if (!process.env.REPLIT_DOMAINS && process.env.NODE_ENV !== "development") {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
-
+// Configuración OIDC genérica (originalmente para Replit, pero adaptable)
 const getOidcConfig = memoize(
   async () => {
+    if (!process.env.ISSUER_URL || !process.env.REPL_ID) {
+      throw new Error("OIDC configuration missing");
+    }
     return await client.discovery(
-      new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
+      new URL(process.env.ISSUER_URL),
+      process.env.REPL_ID
     );
   },
   { maxAge: 3600 * 1000 }
 );
 
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 semana
   const pgStore = connectPg(session);
+  
+  // Asegurarnos de que DATABASE_URL existe
+  if (!process.env.DATABASE_URL) {
+    console.warn("DATABASE_URL not set, session persistence will fail");
+  }
+
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: true, // Asegura que se cree la tabla de sesiones
+    createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions",
   });
   
   return session({
-    secret: process.env.SESSION_SECRET || "dev-secret-key", // Fallback para dev
+    secret: process.env.SESSION_SECRET || "dev-secret-key",
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      // IMPORTANTE: secure: false en desarrollo para que funcione en localhost
+      // Secure false en desarrollo para localhost, true en producción
       secure: process.env.NODE_ENV === "production", 
       sameSite: 'lax', 
       maxAge: sessionTtl,
@@ -58,12 +63,13 @@ function updateUserSession(
 }
 
 async function upsertUser(claims: any) {
+  // Mapeo seguro de campos
   await storage.upsertUser({
     id: claims["sub"],
     email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
+    firstName: claims["first_name"] || claims["given_name"] || "User",
+    lastName: claims["last_name"] || claims["family_name"] || "",
+    profileImageUrl: claims["profile_image_url"] || claims["picture"],
   });
 }
 
@@ -73,9 +79,9 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // --- LOGIN PARA DESARROLLO LOCAL ---
-  // Esto permite simular un usuario logueado sin conectar con Replit
+  // --- ESTRATEGIA LOCAL PARA DESARROLLO ---
   if (process.env.NODE_ENV === "development") {
+    console.log("🔧 Development Auth Strategy Enabled");
     app.post("/api/dev/login", async (req, res) => {
       const devUser = {
         id: "dev-user-id",
@@ -85,41 +91,48 @@ export async function setupAuth(app: Express) {
         profileImageUrl: "",
       };
 
-      // Asegurar que el usuario existe en la DB
-      await storage.upsertUser(devUser);
+      try {
+        await storage.upsertUser(devUser);
 
-      // Crear sesión de Passport
-      const passportUser = {
-        id: devUser.id,
-        claims: { 
-          sub: devUser.id, 
-          email: devUser.email, 
-          first_name: devUser.firstName, 
-          last_name: devUser.lastName 
-        },
-        // Token "eterno" para que no expire la sesión local
-        expires_at: Math.floor(Date.now() / 1000) + 31536000, 
-      };
+        const passportUser = {
+          id: devUser.id,
+          claims: { 
+            sub: devUser.id, 
+            email: devUser.email, 
+            first_name: devUser.firstName, 
+            last_name: devUser.lastName 
+          },
+          expires_at: Math.floor(Date.now() / 1000) + 31536000, // 1 año
+        };
 
-      req.login(passportUser, (err) => {
-        if (err) return res.status(500).json({ message: "Login failed", error: err });
-        return res.json(passportUser);
-      });
+        req.login(passportUser, (err) => {
+          if (err) return res.status(500).json({ message: "Login failed", error: err });
+          return res.json(passportUser);
+        });
+      } catch (error) {
+        console.error("Dev login error:", error);
+        res.status(500).json({ message: "Internal error during dev login" });
+      }
     });
   }
 
-  // Configuración OIDC de Replit (Solo intenta conectarse si no falla)
+  // --- ESTRATEGIA OIDC (Producción / Replit) ---
+  // Solo se activa si existen las variables necesarias
   try {
-    if (process.env.REPL_ID && process.env.ISSUER_URL) {
+    if (process.env.REPL_ID && process.env.ISSUER_URL && process.env.REPLIT_DOMAINS) {
         const config = await getOidcConfig();
         const verify: VerifyFunction = async (tokens, verified) => {
-            const user = {};
-            updateUserSession(user, tokens);
-            await upsertUser(tokens.claims());
-            verified(null, user);
+            try {
+                const user = {};
+                updateUserSession(user, tokens);
+                await upsertUser(tokens.claims());
+                verified(null, user);
+            } catch (err) {
+                verified(err as Error);
+            }
         };
 
-        const domains = process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(",") : [];
+        const domains = process.env.REPLIT_DOMAINS.split(",");
         for (const domain of domains) {
             passport.use(new Strategy({
                 name: `replitauth:${domain}`,
@@ -130,16 +143,21 @@ export async function setupAuth(app: Express) {
         }
     }
   } catch (e) {
-      console.log("OIDC setup skipped or failed (normal in local dev without real credentials)");
+      // Silencioso en local, ya que es esperado que falle si no hay credenciales de Replit
+      if (process.env.NODE_ENV === "production") {
+          console.error("OIDC setup failed:", e);
+      }
   }
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
+  // Rutas de autenticación estándar
   app.get("/api/login", (req, res, next) => {
     if (process.env.NODE_ENV === "development") {
-        return res.status(200).send("En modo desarrollo, usa el botón de Dev Login (o implementa un botón temporal que haga POST a /api/dev/login)");
+        return res.status(200).send("Development mode: Use POST /api/dev/login");
     }
+    // Fallback a estrategia basada en hostname para compatibilidad con Replit
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -154,23 +172,23 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/logout", (req, res) => {
-    req.logout(() => {
+    req.logout((err) => {
+       if (err) console.error("Logout error:", err);
        res.redirect("/");
     });
   });
 }
 
+// Middleware de protección de rutas
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  // FIX CLAVE: Si estamos en desarrollo y hay sesión de passport, pase adelante
-  // sin chequear tokens de Replit que no existen.
+  // Acceso permitido en desarrollo si hay sesión de Passport válida
   if (process.env.NODE_ENV === "development" && req.isAuthenticated()) {
     return next();
   }
 
+  // Verificación estricta para producción (tokens OIDC)
   const user = req.user as any;
-  
-  // Verificación estricta original (se mantiene para producción)
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!req.isAuthenticated() || !user || !user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
@@ -179,11 +197,10 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return next();
   }
 
-  // Intento de refresh token (solo funcionará en Replit real)
+  // Intento de refrescar token (si existe refresh_token)
   const refreshToken = user.refresh_token;
   if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
+    return res.status(401).json({ message: "Unauthorized - Session expired" });
   }
 
   try {
@@ -192,7 +209,6 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     updateUserSession(user, tokenResponse);
     return next();
   } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
+    return res.status(401).json({ message: "Unauthorized - Refresh failed" });
   }
 };
