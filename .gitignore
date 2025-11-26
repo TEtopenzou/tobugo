@@ -7,3 +7,5 @@ vite.config.ts.*
 .env
 
 backup.sql
+
+subir_a_render.sql

@@ -471,11 +471,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const externalReference = `tobugo-${tripId}-${userId}-${Date.now()}`;
       const host = req.get('host') || '';
+      
+      // LÓGICA ACTUALIZADA: Detectar Localhost O Variable de Entorno
       const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+      const forceSimulation = process.env.PAYMENT_SIMULATION === 'true';
 
-      // SIMULACIÓN EN LOCAL
-      if (isLocal) {
-        console.log("Entorno local detectado: Simulando pago exitoso...");
+      // Si estamos en local O si la variable de entorno lo fuerza
+      if (isLocal || forceSimulation) {
+        console.log("Simulando pago exitoso (Local o Forzado)...");
         const purchase = await storage.createPurchase({
           userId,
           tripId,
