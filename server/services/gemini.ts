@@ -194,7 +194,7 @@ Include flights, accommodation, daily activities, meals, and local transport wit
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-pro",
+        model: "gemini-2.5-flash",
         config: {
           systemInstruction: systemPrompt,
           responseMimeType: "application/json",
@@ -401,7 +401,7 @@ Please modify the itinerary according to this feedback.`;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-pro",
+        model: "gemini-2.5-flash",
         config: {
           systemInstruction: systemPrompt,
           responseMimeType: "application/json",
