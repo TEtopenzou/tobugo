@@ -324,3 +324,24 @@ export type InsertSavedTrip = z.infer<typeof insertSavedTripSchema>;
 export type SavedTrip = typeof savedTrips.$inferSelect;
 export type InsertPurchase = z.infer<typeof insertPurchaseSchema>;
 export type Purchase = typeof purchases.$inferSelect;
+
+export const chatPrompts = pgTable("chat_prompts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  sessionId: varchar("session_id").notNull().references(() => chatSessions.id),
+  promptText: text("prompt_text").notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`),
+});
+
+export const chatPromptsRelations = relations(chatPrompts, ({ one }) => ({
+  user: one(users, { fields: [chatPrompts.userId], references: [users.id] }),
+  session: one(chatSessions, { fields: [chatPrompts.sessionId], references: [chatSessions.id] }),
+}));
+
+export const insertChatPromptSchema = createInsertSchema(chatPrompts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertChatPrompt = z.infer<typeof insertChatPromptSchema>;
+export type ChatPrompt = typeof chatPrompts.$inferSelect;
