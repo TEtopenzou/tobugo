@@ -13,7 +13,7 @@ import { createPaymentPreference, getPaymentInfo } from "./mercadopago";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Auth middleware
   await setupAuth(app);
-  
+
   // Initialize object storage service
   const objectStorage = new ObjectStorageService();
 
@@ -27,13 +27,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const hashedPassword = await hashPassword(req.body.password);
-      
+
       const newUser = await storage.createUser({
         ...req.body,
         password: hashedPassword,
-        email: req.body.email || `${req.body.username}@example.com`, 
+        email: req.body.email || `${req.body.username}@example.com`,
         firstName: req.body.username,
-        lastName: "", 
+        lastName: "",
         profileImageUrl: "",
       });
 
@@ -58,7 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       // FIX: Usamos el usuario directamente de la sesión (ya deserializado)
-      const user = req.user; 
+      const user = req.user;
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -95,11 +95,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         maxDuration: req.query.maxDuration ? parseInt(req.query.maxDuration as string) : undefined,
         travelStyle: req.query.travelStyle as string,
       };
-      
+
       const cleanFilters = Object.fromEntries(
         Object.entries(filters).filter(([_, v]) => v !== undefined)
       );
-      
+
       const trips = await storage.getPublicTrips(Object.keys(cleanFilters).length > 0 ? cleanFilters : undefined);
       res.json(trips);
     } catch (error) {
@@ -124,11 +124,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // FIX: req.user.id
       const requestingUserId = (req.user as any).id;
       const targetUserId = req.params.userId;
-      
+
       if (requestingUserId !== targetUserId) {
         return res.status(403).json({ message: "Forbidden: You can only access your own trips" });
       }
-      
+
       const trips = await storage.getTripsByUserId(req.params.userId);
       res.json(trips);
     } catch (error) {
@@ -216,11 +216,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { message } = req.body;
       const sessionId = req.params.id;
-      
+
       const session = await storage.getChatSession(sessionId);
       if (!session) {
         return res.status(404).json({ message: "Chat session not found" });
       }
+
+      // Log the prompt
+      const userId = (req.user as any).id;
+      await storage.createChatPrompt({
+        userId,
+        sessionId,
+        promptText: message,
+      });
+
 
       const messages = session.messages || [];
       const newMessage = {
@@ -325,15 +334,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const parsedPreferences = preferencesSchema.parse(req.body);
-      
+
       let startDate = parsedPreferences.startDate;
       let endDate = parsedPreferences.endDate;
       const duration = parsedPreferences.duration || parsedPreferences.days || 7;
-      
+
       if (!startDate && !endDate) {
         const today = new Date();
         const start = new Date(today);
-        start.setDate(today.getDate() + 7); 
+        start.setDate(today.getDate() + 7);
         const end = new Date(start);
         end.setDate(start.getDate() + duration - 1);
         startDate = start.toISOString().split('T')[0];
@@ -349,17 +358,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         start.setDate(end.getDate() - duration + 1);
         startDate = start.toISOString().split('T')[0];
       }
-      
+
       if (!startDate || !endDate) {
         throw new Error("Unable to determine trip dates");
       }
-      
+
       const finalPreferences = {
         ...parsedPreferences,
         startDate,
         endDate
       };
-      
+
       const itinerary = await generateItinerary(finalPreferences);
       res.json(itinerary);
     } catch (error: any) {
@@ -462,16 +471,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const existingPurchase = await storage.getPurchaseByTripAndUser(tripId, userId);
       if (existingPurchase) {
-        return res.json({ 
-          message: "Already purchased", 
+        return res.json({
+          message: "Already purchased",
           preferenceId: existingPurchase.mercadoPagoPreferenceId,
-          alreadyPurchased: true 
+          alreadyPurchased: true
         });
       }
 
       const externalReference = `tobugo-${tripId}-${userId}-${Date.now()}`;
       const host = req.get('host') || '';
-      
+
       // LÓGICA ACTUALIZADA: Detectar Localhost O Variable de Entorno
       const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
       const forceSimulation = process.env.PAYMENT_SIMULATION === 'true';
@@ -484,18 +493,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tripId,
           amount: String(Number(amount) || 99),
           currency,
-          status: 'approved', 
+          status: 'approved',
           mercadoPagoPreferenceId: 'simulated-pref-id-' + Date.now(),
           mercadoPagoExternalReference: externalReference,
           paidAt: new Date()
         });
 
-        return res.json({ 
+        return res.json({
           preferenceId: purchase.mercadoPagoPreferenceId,
-          initPoint: null, 
-          sandboxInitPoint: null, 
+          initPoint: null,
+          sandboxInitPoint: null,
           purchaseId: externalReference,
-          simulated: true 
+          simulated: true
         });
       }
 
@@ -512,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: `Descarga de Itinerario: ${trip.title}`,
         description: `Acceso completo al itinerario de ${trip.destination}`,
         quantity: 1,
-        unitPrice: Number(amount) || 99, 
+        unitPrice: Number(amount) || 99,
         currency,
         externalReference,
         backUrls: {
@@ -539,7 +548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mercadoPagoExternalReference: externalReference,
       });
 
-      res.json({ 
+      res.json({
         preferenceId: preference.id,
         initPoint: preference.initPoint,
         sandboxInitPoint: preference.sandboxInitPoint,
@@ -588,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as any).id;
       const tripId = req.params.tripId;
       const purchase = await storage.getPurchaseByTripAndUser(tripId, userId);
-      res.json({ 
+      res.json({
         hasPurchased: !!purchase,
         purchase: purchase || null
       });
@@ -697,7 +706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uploadUrl = await objectStorage.getObjectEntityUploadURL();
       const urlObj = new URL(uploadUrl, `http://${req.headers.host}`);
       const objectPath = urlObj.pathname;
-      res.json({ 
+      res.json({
         uploadUrl,
         objectPath,
         isPublic,
@@ -715,11 +724,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as any).id;
       const reviewId = req.params.id;
       const { objectPath, isPublic = false } = req.body;
-      
+
       if (!objectPath) {
         return res.status(400).json({ message: "Object path is required" });
       }
-      
+
       const existingReview = await storage.getPlaceReview(reviewId);
       if (!existingReview) {
         return res.status(404).json({ message: "Place review not found" });
@@ -727,21 +736,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingReview.userId !== userId) {
         return res.status(403).json({ message: "Forbidden: You can only attach media to your own reviews" });
       }
-      
+
       const aclPolicy = {
         visibility: isPublic ? "public" : "private" as "public" | "private",
         owner: userId,
         aclRules: []
       };
-      
+
       const normalizedPath = await objectStorage.trySetObjectEntityAclPolicy(objectPath, aclPolicy);
       const currentMediaUrls = existingReview.mediaUrls || [];
       const updatedMediaUrls = [...currentMediaUrls, normalizedPath];
       const updatedReview = await storage.updatePlaceReview(reviewId, {
         mediaUrls: updatedMediaUrls
       });
-      
-      res.json({ 
+
+      res.json({
         success: true,
         review: updatedReview,
         attachedMedia: normalizedPath
@@ -757,13 +766,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const file = await objectStorage.getObjectEntityFile(req.path);
       // FIX: req.user.id (opcional)
       const userId = req.user ? (req.user as any).id : undefined;
-      
+
       const canRead = await objectStorage.canAccessObjectEntity({
         userId,
         objectFile: file,
         requestedPermission: ObjectPermission.READ
       });
-      
+
       if (!canRead) {
         console.log(`ACL: Access denied for user ${userId || 'anonymous'} to object ${req.path}`);
         return res.status(403).json({ message: "Forbidden" });

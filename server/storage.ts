@@ -1,4 +1,4 @@
-import { users, trips, chatSessions, reviews, savedTrips, reviewHelpfuls, placeReviews, purchases, type User, type InsertUser, type UpsertUser, type Trip, type InsertTrip, type ChatSession, type InsertChatSession, type Review, type InsertReview, type SavedTrip, type InsertSavedTrip, type PlaceReview, type InsertPlaceReview, type Purchase, type InsertPurchase } from "@shared/schema";
+import { users, trips, chatSessions, reviews, savedTrips, reviewHelpfuls, placeReviews, purchases, chatPrompts, type User, type InsertUser, type UpsertUser, type Trip, type InsertTrip, type ChatSession, type InsertChatSession, type Review, type InsertReview, type SavedTrip, type InsertSavedTrip, type PlaceReview, type InsertPlaceReview, type Purchase, type InsertPurchase, type InsertChatPrompt, type ChatPrompt } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, avg, sql, gte, lte, ilike } from "drizzle-orm";
 
@@ -31,6 +31,7 @@ export interface IStorage {
   getChatSessionsByUserId(userId: string): Promise<ChatSession[]>;
   createChatSession(session: InsertChatSession): Promise<ChatSession>;
   updateChatSession(id: string, session: Partial<InsertChatSession>): Promise<ChatSession>;
+  createChatPrompt(prompt: InsertChatPrompt): Promise<ChatPrompt>;
 
   // Reviews
   getReview(id: string): Promise<Review | undefined>;
@@ -142,34 +143,34 @@ export class DatabaseStorage implements IStorage {
     travelStyle?: string;
   }): Promise<Trip[]> {
     let conditions = [eq(trips.isPublic, true)];
-    
+
     if (filters) {
       if (filters.destination) {
         conditions.push(sql`LOWER(${trips.destination}) LIKE LOWER(${'%' + filters.destination + '%'})`);
       }
-      
+
       if (filters.minBudget !== undefined) {
         conditions.push(sql`CAST(${trips.budget} AS DECIMAL) >= ${filters.minBudget}`);
       }
-      
+
       if (filters.maxBudget !== undefined) {
         conditions.push(sql`CAST(${trips.budget} AS DECIMAL) <= ${filters.maxBudget}`);
       }
-      
+
       if (filters.travelStyle) {
         conditions.push(sql`${trips.preferences}->>'travelStyle' ILIKE ${'%' + filters.travelStyle + '%'}`);
       }
-      
+
       // Duration filtering based on date difference
       if (filters.minDuration !== undefined) {
         conditions.push(sql`EXTRACT(DAY FROM ${trips.endDate} - ${trips.startDate}) >= ${filters.minDuration}`);
       }
-      
+
       if (filters.maxDuration !== undefined) {
         conditions.push(sql`EXTRACT(DAY FROM ${trips.endDate} - ${trips.startDate}) <= ${filters.maxDuration}`);
       }
     }
-    
+
     return await db.select().from(trips)
       .where(and(...conditions))
       .orderBy(desc(trips.createdAt));
@@ -216,6 +217,12 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return session;
   }
+
+  async createChatPrompt(insertPrompt: InsertChatPrompt): Promise<ChatPrompt> {
+    const [prompt] = await db.insert(chatPrompts).values(insertPrompt).returning();
+    return prompt;
+  }
+
 
   // Reviews
   async getReview(id: string): Promise<Review | undefined> {
@@ -270,7 +277,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(trips, eq(savedTrips.tripId, trips.id))
       .where(eq(savedTrips.userId, userId))
       .orderBy(desc(savedTrips.createdAt));
-    
+
     return savedTripsWithDetails;
   }
 
@@ -353,7 +360,7 @@ export class DatabaseStorage implements IStorage {
         .set({ helpful: sql`coalesce(${reviews.helpful}, 0) + 1` })
         .where(eq(reviews.id, reviewId))
         .returning();
-      
+
       return review;
     } catch (error: any) {
       // If the error is a unique constraint violation, user has already voted
