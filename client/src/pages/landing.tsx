@@ -69,9 +69,9 @@ export default function Landing() {
             Únete a miles de viajeros que ya han descubierto la forma más inteligente de planificar sus viajes
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              variant="secondary" 
+            <Button
+              size="lg"
+              variant="secondary"
               className="text-lg px-8 py-4"
               onClick={() => window.location.href = "/api/login"}
               data-testid="button-cta-login"
@@ -79,15 +79,35 @@ export default function Landing() {
               Iniciar Sesión para Planificar
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
+            <Button
+              size="lg"
+              variant="outline"
               className="text-lg px-8 py-4 border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary"
               onClick={() => window.location.href = "/api/login"}
               data-testid="button-explore-community"
             >
               Explorar Comunidad
             </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* About Us Section */}
+      <section className="py-20 bg-background">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-bold mb-8" data-testid="text-about-title">
+            Nuestra misión: Viajar sin estrés
+          </h2>
+          <div className="space-y-6 text-lg text-muted-foreground leading-relaxed">
+            <p data-testid="text-about-p1">
+              TobuGo nace a partir de una necesidad simple: organizar un viaje debería ser un proceso claro y accesible, no una tarea compleja que requiera múltiples herramientas y coordinaciones. Con el tiempo, la planificación de viajes se volvió fragmentada, obligando a los usuarios a saltar entre distintas plataformas para tomar decisiones.
+            </p>
+            <p data-testid="text-about-p2">
+              Somos un equipo interesado en la tecnología y en cómo esta puede simplificar experiencias cotidianas. A partir de esa idea, creamos TobuGo como una plataforma que reúne en un solo lugar la información necesaria para planificar un viaje, ayudando a ordenar opciones y preferencias de forma más sencilla.
+            </p>
+            <p data-testid="text-about-p3">
+              Nuestro propósito es que viajar vuelva a ser disfrutar, no gestionar. Actuamos como tu copiloto inteligente para eliminar la carga logística y resolver el caos de coordinar grupos, devolviéndote lo más valioso: tu tiempo y tu tranquilidad.
+            </p>
           </div>
         </div>
       </section>
@@ -105,7 +125,7 @@ export default function Landing() {
                 La plataforma definitiva para planificar viajes inteligentes con IA y comunidad de viajeros.
               </p>
             </div>
-            
+
             <div>
               <h3 className="font-semibold mb-4" data-testid="text-footer-platform">Plataforma</h3>
               <ul className="space-y-2 text-muted-foreground">
@@ -114,7 +134,7 @@ export default function Landing() {
                 <li><button onClick={() => window.location.href = "/api/login"} className="hover:text-primary transition-colors" data-testid="link-footer-trips">Mis Viajes</button></li>
               </ul>
             </div>
-            
+
             <div>
               <h3 className="font-semibold mb-4" data-testid="text-footer-company">Empresa</h3>
               <ul className="space-y-2 text-muted-foreground">
@@ -123,7 +143,7 @@ export default function Landing() {
                 <li><a href="#" className="hover:text-primary transition-colors" data-testid="link-footer-privacy">Privacidad</a></li>
               </ul>
             </div>
-            
+
             <div>
               <h3 className="font-semibold mb-4" data-testid="text-footer-social">Síguenos</h3>
               <ul className="space-y-2 text-muted-foreground">
@@ -133,7 +153,7 @@ export default function Landing() {
               </ul>
             </div>
           </div>
-          
+
           <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
             <p data-testid="text-footer-copyright">&copy; 2025 TobuGo. Todos los derechos reservados.</p>
           </div>
