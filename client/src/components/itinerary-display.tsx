@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import CostSummary from "@/components/cost-summary";
 import CheckoutModal from "@/components/checkout-modal";
-import { Edit, Download, Calendar, MapPin, Plane, Bed, Utensils, Car, Send, Lock, Trash } from "lucide-react";
+import { Edit, Download, Calendar, MapPin, Plane, Bed, Utensils, Car, Send, Lock, Trash, X } from "lucide-react";
 import { generatePDF } from "@/lib/pdf-generator";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -312,22 +312,21 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify, onItiner
                         </div>
                       )}
 
-                      {/* Delete Button */}
-                      {selectedActivity?.dayIndex === index && selectedActivity?.activityIndex === actIndex && (
-                        <div className="absolute right-2 bottom-2">
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setIsDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                      {/* Delete Button - Always visible */}
+                      <div className="absolute right-2 top-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedActivity({ dayIndex: index, activityIndex: actIndex });
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
 
