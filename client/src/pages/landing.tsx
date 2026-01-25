@@ -115,27 +115,21 @@ export default function Landing() {
       {/* Footer */}
       <footer className="bg-card border-t border-border py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="col-span-2 md:col-span-1">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            {/* Column 1: Brand - Left Aligned on Desktop */}
+            <div className="flex flex-col items-center md:items-start text-center md:text-left">
               <div className="flex items-center space-x-2 mb-4">
                 <Plane className="text-2xl text-primary" />
                 <span className="text-xl font-bold">TobuGo</span>
               </div>
-              <p className="text-muted-foreground" data-testid="text-footer-description">
+              <p className="text-muted-foreground max-w-xs" data-testid="text-footer-description">
                 La plataforma definitiva para planificar viajes inteligentes con IA y comunidad de viajeros.
               </p>
             </div>
 
-            <div>
-              <h3 className="font-semibold mb-4" data-testid="text-footer-platform">Plataforma</h3>
-              <ul className="space-y-2 text-muted-foreground">
-                <li><button onClick={() => window.location.href = "/api/login"} className="hover:text-primary transition-colors" data-testid="link-footer-planning">Planificación</button></li>
-                <li><button onClick={() => window.location.href = "/api/login"} className="hover:text-primary transition-colors" data-testid="link-footer-community">Comunidad</button></li>
-                <li><button onClick={() => window.location.href = "/api/login"} className="hover:text-primary transition-colors" data-testid="link-footer-trips">Mis Viajes</button></li>
-              </ul>
-            </div>
-
-            <div>
+            {/* Column 2: Empresa - Centered on Desktop */}
+            <div className="flex flex-col items-center text-center">
               <h3 className="font-semibold mb-4" data-testid="text-footer-company">Empresa</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li><a href="#" className="hover:text-primary transition-colors" data-testid="link-footer-about">Acerca de</a></li>
@@ -144,7 +138,8 @@ export default function Landing() {
               </ul>
             </div>
 
-            <div>
+            {/* Column 3: Social - Right Aligned on Desktop */}
+            <div className="flex flex-col items-center md:items-end text-center md:text-right">
               <h3 className="font-semibold mb-4" data-testid="text-footer-social">Síguenos</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li><a href="#" className="hover:text-primary transition-colors" data-testid="link-footer-twitter">Twitter</a></li>
@@ -153,6 +148,7 @@ export default function Landing() {
               </ul>
             </div>
           </div>
+
 
           <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
             <p data-testid="text-footer-copyright">&copy; 2025 TobuGo. Todos los derechos reservados.</p>
