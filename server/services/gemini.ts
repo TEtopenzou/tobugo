@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ 
-  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_KEY || "" 
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_KEY || ""
 });
 
 export interface TravelPreferences {
@@ -41,6 +41,103 @@ export interface TravelItinerary {
   };
 }
 
+// Mock Data for Development
+const MOCK_ITINERARY: TravelItinerary = {
+  days: [
+    {
+      date: "2024-03-15",
+      totalCost: 350,
+      activities: [
+        {
+          time: "10:00",
+          title: "MOCK: Eiffel Tower Visit",
+          description: "Visit the iconic Eiffel Tower and enjoy the views.",
+          type: "activity",
+          cost: 50,
+          location: "Champ de Mars, 5 Av. Anatole France, 75007 Paris"
+        },
+        {
+          time: "13:00",
+          title: "MOCK: Lunch at a Bistro",
+          description: "Traditional French lunch at a local bistro.",
+          type: "meal",
+          cost: 50,
+          location: "Le Petit Cler"
+        },
+        {
+          time: "15:00",
+          title: "MOCK: Louvre Museum",
+          description: "Explore the world's largest art museum.",
+          type: "activity",
+          cost: 25,
+          location: "Musée du Louvre, 75001 Paris"
+        },
+        {
+          time: "20:00",
+          title: "MOCK: Dinner Cruise",
+          description: "Dinner cruise on the Seine River.",
+          type: "meal",
+          cost: 100,
+          location: "Seine River"
+        },
+        {
+          time: "22:00",
+          title: "MOCK: Hotel Check-in",
+          description: "Check into your hotel.",
+          type: "accommodation",
+          cost: 125,
+          location: "Hotel Le Walt"
+        }
+      ]
+    },
+    {
+      date: "2024-03-16",
+      totalCost: 200,
+      activities: [
+        {
+          time: "09:00",
+          title: "MOCK: Day Trip to Versailles",
+          description: "Visit the Palace of Versailles.",
+          type: "activity",
+          cost: 80,
+          location: "Place d'Armes, 78000 Versailles"
+        },
+        {
+          time: "19:00",
+          title: "MOCK: Dinner in Montmartre",
+          description: "Dinner in the artistic district of Montmartre.",
+          type: "meal",
+          cost: 120,
+          location: "Montmartre"
+        }
+      ]
+    }
+  ],
+  totalCost: 550,
+  costBreakdown: {
+    flights: 0,
+    accommodation: 125,
+    activities: 155,
+    meals: 270,
+    transport: 0
+  }
+};
+
+const MOCK_CHAT_RESPONSE = {
+  response: "¡Hola! (MODO PRUEBA ACTIVADO) He recibido tus preferencias. Como estamos en modo de prueba, generaré un itinerario de ejemplo para París automáticamente ahora mismo.",
+  extractedPreferences: {
+    destination: "Paris",
+    startDate: "2024-03-15",
+    endDate: "2024-03-20",
+    budget: 2000,
+    travelers: 2,
+    activities: ["Sightseeing", "Food"],
+    travelStyle: "Relaxed",
+    accommodationType: "Hotel"
+  },
+  shouldGenerateItinerary: true
+};
+
 // Helper function to extract JSON from AI response
 function extractJsonString(text: string): string {
   // Remove markdown code fences if present
@@ -52,7 +149,7 @@ function extractJsonString(text: string): string {
 function normalizeItinerary(data: any, preferences: TravelPreferences): TravelItinerary {
   // Handle wrapped response (e.g., { itinerary: ... })
   let itinerary = data.itinerary ?? data;
-  
+
   // Ensure we have days array
   if (!itinerary.days || !Array.isArray(itinerary.days) || itinerary.days.length === 0) {
     throw new Error('Invalid itinerary: missing days array');
@@ -136,6 +233,13 @@ function normalizeItinerary(data: any, preferences: TravelPreferences): TravelIt
 }
 
 export async function generateItinerary(preferences: TravelPreferences): Promise<TravelItinerary> {
+  // Check for Test Mode
+  if (process.env.TEST_MODE === 'true') {
+    console.log("TEST_MODE active: Returning mock itinerary");
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+    return MOCK_ITINERARY;
+  }
+
   const systemPrompt = `You are a professional travel planner AI. Create detailed, realistic travel itineraries with accurate cost estimates.
 
 Key requirements:
@@ -189,7 +293,7 @@ Do NOT include markdown code fences or any wrapper objects. Return only the JSON
 Include flights, accommodation, daily activities, meals, and local transport with realistic pricing.`;
 
   let lastError;
-  
+
   // Retry up to 3 times with exponential backoff for transient errors
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -211,7 +315,7 @@ Include flights, accommodation, daily activities, meals, and local transport wit
       // Extract and clean JSON string
       const jsonStr = extractJsonString(text);
       console.log("Raw AI response:", jsonStr.substring(0, 500) + "..."); // Debug log (truncated)
-      
+
       // Parse and normalize the response
       const rawData = JSON.parse(jsonStr);
       const itinerary = normalizeItinerary(rawData, preferences);
@@ -220,11 +324,11 @@ Include flights, accommodation, daily activities, meals, and local transport wit
     } catch (error: any) {
       lastError = error;
       console.error(`Error generating itinerary (attempt ${attempt}):`, error);
-      
+
       // Check if it's a retryable error (503, 429, network issues)
       if (attempt < 3 && (
-        error.message?.includes('503') || 
-        error.message?.includes('overloaded') || 
+        error.message?.includes('503') ||
+        error.message?.includes('overloaded') ||
         error.message?.includes('429') ||
         error.message?.includes('UNAVAILABLE')
       )) {
@@ -234,12 +338,12 @@ Include flights, accommodation, daily activities, meals, and local transport wit
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
-      
+
       // For non-retryable errors, throw immediately
       break;
     }
   }
-  
+
   // If we get here, all retries failed
   if (lastError?.message?.includes('503') || lastError?.message?.includes('overloaded')) {
     throw new Error('The AI service is temporarily overloaded. Please try again in a few moments.');
@@ -254,9 +358,60 @@ export async function processConversation(
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
   context?: { preferences?: Partial<TravelPreferences> }
 ): Promise<{ response: string; extractedPreferences?: Partial<TravelPreferences>; shouldGenerateItinerary?: boolean }> {
-  
+
   const currentPreferences = context?.preferences || {};
-  
+
+  // Check for Test Mode
+  if (process.env.TEST_MODE === 'true') {
+    console.log("TEST_MODE active: Returning mock chat response");
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+
+    // Mock logic: Check if we have enough info to "complete" the flow or if we need to ask the follow-up
+    const hasDestination = currentPreferences.destination || messages.some(m => m.role === 'user' && m.content.toLowerCase().includes('buenos aires'));
+    const hasDates = currentPreferences.startDate || messages.some(m => m.role === 'user' && (m.content.includes('marzo') || m.content.includes('/')));
+
+    // If we seem to have basic info but maybe not style, ask for style
+    // Ideally we would parse the message properly but for a mock, let's just assume 
+    // if the user sent a long message (likely answering the first 4 questions), we ask the follow-up.
+    // If the user mentions a style, we finish.
+
+    const lastUserMessage = messages[messages.length - 1].content.toLowerCase();
+
+    // Simple state machine for mock
+    if (lastUserMessage.includes('cultural') || lastUserMessage.includes('aventura') || lastUserMessage.includes('relax') || lastUserMessage.includes('compras')) {
+      // Step 3: We have style, generate itinerary
+      return {
+        response: "¡Perfecto! Tengo todo lo necesario. (MODO PRUEBA) Generando tu itinerario ahora...",
+        extractedPreferences: {
+          destination: "Buenos Aires",
+          startDate: "2024-03-15",
+          endDate: "2024-03-20",
+          budget: 8000,
+          travelers: 3,
+          travelStyle: "Cultural",
+          ...currentPreferences
+        },
+        shouldGenerateItinerary: true
+      };
+    } else {
+      // Step 2: Ask follow-up
+      return {
+        response: "¡Excelente! Ya veo que quieres ir a Buenos Aires del 15 al 20 de marzo con tus dos hijos y un presupuesto de $8000.\n\nPerfecto! Solo me falta una última pregunta:\n\n¿Qué tipo de viaje tenías en mente? (cultural, histórico, compras, deportes, relajación, aventura, etc.)",
+        extractedPreferences: {
+          destination: "Buenos Aires",
+          startDate: "2024-03-15",
+          endDate: "2024-03-20",
+          budget: 8000,
+          travelers: 3,
+          ...currentPreferences
+        },
+        shouldGenerateItinerary: false // Wait for style
+      };
+    }
+  }
+
+
+
   const systemPrompt = `You are a friendly travel planning assistant. Your goal is to gather travel preferences in two steps.
 
 ALREADY COLLECTED PREFERENCES: ${JSON.stringify(currentPreferences)}
@@ -311,7 +466,7 @@ Respond with JSON containing:
 IMPORTANT: Only include extractedPreferences fields that were NEWLY mentioned in this message. Set shouldGenerateItinerary=true only after collecting all 5 pieces of information (destination, dates, budget, travelers, travelStyle).`;
 
   try {
-    const conversationHistory = messages.map(msg => 
+    const conversationHistory = messages.map(msg =>
       `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
     ).join('\n');
 
@@ -344,6 +499,14 @@ export async function optimizeItinerary(
   currentItinerary: TravelItinerary,
   userFeedback: string
 ): Promise<TravelItinerary> {
+  // Check for Test Mode
+  if (process.env.TEST_MODE === 'true') {
+    console.log("TEST_MODE active: Returning mock optimized itinerary");
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+    // In a real mock we might modify it, but returning the same is fine for simple testing
+    return MOCK_ITINERARY;
+  }
+
   const systemPrompt = `You are a travel planner optimizing an existing itinerary based on user feedback.
 
 Modify the itinerary according to the user's requests while maintaining:
@@ -396,7 +559,7 @@ Please modify the itinerary according to this feedback.`;
   };
 
   let lastError;
-  
+
   // Retry up to 3 times with exponential backoff for transient errors
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -418,7 +581,7 @@ Please modify the itinerary according to this feedback.`;
       // Extract and clean JSON string
       const jsonStr = extractJsonString(text);
       console.log("Raw AI optimization response:", jsonStr.substring(0, 500) + "..."); // Debug log (truncated)
-      
+
       // Parse and normalize the response
       const rawData = JSON.parse(jsonStr);
       const optimizedItinerary = normalizeItinerary(rawData, preferences);
@@ -427,11 +590,11 @@ Please modify the itinerary according to this feedback.`;
     } catch (error: any) {
       lastError = error;
       console.error(`Error optimizing itinerary (attempt ${attempt}):`, error);
-      
+
       // Check if it's a retryable error (503, 429, network issues)
       if (attempt < 3 && (
-        error.message?.includes('503') || 
-        error.message?.includes('overloaded') || 
+        error.message?.includes('503') ||
+        error.message?.includes('overloaded') ||
         error.message?.includes('429') ||
         error.message?.includes('UNAVAILABLE')
       )) {
@@ -441,12 +604,12 @@ Please modify the itinerary according to this feedback.`;
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
-      
+
       // For non-retryable errors, throw immediately
       break;
     }
   }
-  
+
   // If we get here, all retries failed
   if (lastError?.message?.includes('503') || lastError?.message?.includes('overloaded')) {
     throw new Error('The AI service is temporarily overloaded. Please try again in a few moments.');

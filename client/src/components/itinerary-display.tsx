@@ -3,10 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import CostSummary from "@/components/cost-summary";
 import CheckoutModal from "@/components/checkout-modal";
-import { Edit, Download, Calendar, MapPin, Plane, Bed, Utensils, Car, Send, Lock } from "lucide-react";
+import { Edit, Download, Calendar, MapPin, Plane, Bed, Utensils, Car, Send, Lock, Trash } from "lucide-react";
 import { generatePDF } from "@/lib/pdf-generator";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,7 @@ interface ItineraryDisplayProps {
   itinerary: any;
   tripId?: string;
   onModify: (feedback: string) => void;
+  onItineraryUpdate?: (itinerary: any) => void;
 }
 
 const getActivityIcon = (type: string) => {
@@ -49,9 +50,10 @@ const getActivityColor = (type: string) => {
   }
 };
 
-export default function ItineraryDisplay({ itinerary, tripId, onModify }: ItineraryDisplayProps) {
+export default function ItineraryDisplay({ itinerary, tripId, onModify, onItineraryUpdate }: ItineraryDisplayProps) {
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
   const [selectedActivity, setSelectedActivity] = useState<{ dayIndex: number; activityIndex: number } | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [modificationText, setModificationText] = useState("");
   const [isModificationDialogOpen, setIsModificationDialogOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -72,6 +74,33 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify }: Itiner
       newExpanded.add(index);
     }
     setExpandedDays(newExpanded);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!selectedActivity || !onItineraryUpdate) return;
+
+    const { dayIndex, activityIndex } = selectedActivity;
+    const newItinerary = JSON.parse(JSON.stringify(itinerary));
+    const day = newItinerary.days[dayIndex];
+    const activity = day.activities[activityIndex];
+
+    // Remove activity
+    day.activities.splice(activityIndex, 1);
+
+    // Update costs if available
+    if (activity.cost) {
+      day.totalCost = Math.max(0, (day.totalCost || 0) - activity.cost);
+      newItinerary.totalCost = Math.max(0, (newItinerary.totalCost || 0) - activity.cost);
+    }
+
+    onItineraryUpdate(newItinerary);
+    setSelectedActivity(null);
+    setIsDeleteDialogOpen(false);
+
+    toast({
+      title: "Actividad eliminada",
+      description: "La actividad ha sido eliminada del itinerario.",
+    });
   };
 
   const handleDownloadPDF = async () => {
@@ -242,7 +271,7 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify }: Itiner
                   {day.activities?.map((activity: any, actIndex: number) => (
                     <div
                       key={actIndex}
-                      className={`flex items-center space-x-4 p-4 rounded-lg cursor-pointer transition-all border-2 ${selectedActivity?.dayIndex === index && selectedActivity?.activityIndex === actIndex
+                      className={`flex items-center space-x-4 p-4 rounded-lg cursor-pointer transition-all border-2 relative group ${selectedActivity?.dayIndex === index && selectedActivity?.activityIndex === actIndex
                         ? "bg-green-500/20 border-green-500"
                         : "bg-muted border-transparent hover:bg-muted/80"
                         }`}
@@ -280,6 +309,23 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify }: Itiner
                           <p className="text-xs text-muted-foreground capitalize">
                             {activity.type === 'accommodation' ? 'Por noche' : 'Estimado'}
                           </p>
+                        </div>
+                      )}
+
+                      {/* Delete Button */}
+                      {selectedActivity?.dayIndex === index && selectedActivity?.activityIndex === actIndex && (
+                        <div className="absolute right-2 bottom-2">
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -376,6 +422,24 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify }: Itiner
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará la actividad del itinerario. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

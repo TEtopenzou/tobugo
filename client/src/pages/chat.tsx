@@ -15,7 +15,7 @@ export default function Chat() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(params?.id || null);
   const [generatedItinerary, setGeneratedItinerary] = useState(null);
   const [savedTripId, setSavedTripId] = useState<string | null>(null);
-  const [chatHistory, setChatHistory] = useState<Array<{id: string, role: string, content: string, timestamp: string}>>([]);
+  const [chatHistory, setChatHistory] = useState<Array<{ id: string, role: string, content: string, timestamp: string }>>([]);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
@@ -38,7 +38,7 @@ export default function Chat() {
   // Get current chat session with persistent history
   const { data: chatSession, isLoading: sessionLoading } = useQuery<{
     id: string;
-    messages?: Array<{id: string, role: string, content: string, timestamp: string}>;
+    messages?: Array<{ id: string, role: string, content: string, timestamp: string }>;
     status: string;
   }>({
     queryKey: ['/api/chat', currentSessionId],
@@ -56,7 +56,7 @@ export default function Chat() {
   const sendMessageMutation = useMutation({
     mutationFn: async ({ message, tempId }: { message: string, tempId: string }) => {
       if (!currentSessionId) throw new Error("No active session");
-      
+
       const response = await apiRequest("POST", `/api/chat/${currentSessionId}/message`, {
         message
       });
@@ -71,12 +71,12 @@ export default function Chat() {
         timestamp: new Date().toISOString()
       };
       setChatHistory(prev => [...prev, userMessage]);
-      
+
       return { tempId };
     },
     onSuccess: ({ data }) => {
       queryClient.invalidateQueries({ queryKey: ['/api/chat', currentSessionId] });
-      
+
       if (data.shouldGenerateItinerary && data.extractedPreferences) {
         generateItineraryMutation.mutate(data.extractedPreferences);
       }
@@ -87,7 +87,7 @@ export default function Chat() {
         setChatHistory(prev => prev.filter(msg => msg.id !== context.tempId));
       }
       console.error("Error sending message:", error);
-      
+
       // Notify user
       toast({
         title: "Error al enviar mensaje",
@@ -129,7 +129,7 @@ export default function Chat() {
         itinerary: itinerary,
         isPublic: false // Default to private, user can change later
       };
-      
+
       const response = await apiRequest("POST", "/api/trips", tripData);
       return response.json();
     },
@@ -144,7 +144,7 @@ export default function Chat() {
   const optimizeItineraryMutation = useMutation({
     mutationFn: async (feedback: string) => {
       if (!generatedItinerary) throw new Error("No itinerary to optimize");
-      
+
       const response = await apiRequest("POST", "/api/ai/optimize-itinerary", {
         itinerary: generatedItinerary,
         feedback
@@ -278,11 +278,14 @@ export default function Chat() {
             </p>
           </div>
 
-          <ItineraryDisplay 
+          <ItineraryDisplay
             itinerary={generatedItinerary}
             tripId={savedTripId || undefined}
             onModify={(feedback) => {
               optimizeItineraryMutation.mutate(feedback);
+            }}
+            onItineraryUpdate={(newItinerary) => {
+              setGeneratedItinerary(newItinerary);
             }}
           />
         </div>
@@ -297,7 +300,7 @@ export default function Chat() {
                 {generateItineraryMutation.isPending ? "Generando tu itinerario..." : "Optimizando tu itinerario..."}
               </h3>
               <p className="text-muted-foreground text-sm">
-                {generateItineraryMutation.isPending 
+                {generateItineraryMutation.isPending
                   ? "Nuestra IA está creando el viaje perfecto para ti"
                   : "Aplicando tus cambios al itinerario"
                 }
