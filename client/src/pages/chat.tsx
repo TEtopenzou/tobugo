@@ -140,7 +140,21 @@ export default function Chat() {
     },
   });
 
-  // Optimize itinerary mutation
+  // Update trip mutation
+  const updateTripMutation = useMutation({
+    mutationFn: async (itinerary: any) => {
+      if (!savedTripId) return;
+      const response = await apiRequest("PUT", `/api/trips/${savedTripId}`, {
+        itinerary
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      console.log("Trip updated in database");
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/user'] });
+    },
+  });
+
   const optimizeItineraryMutation = useMutation({
     mutationFn: async ({ feedback, selectedActivity }: { feedback: string, selectedActivity?: any }) => {
       if (!generatedItinerary) throw new Error("No itinerary to optimize");
@@ -154,6 +168,8 @@ export default function Chat() {
     },
     onSuccess: (optimizedItinerary) => {
       setGeneratedItinerary(optimizedItinerary);
+      // Update the trip in the database
+      updateTripMutation.mutate(optimizedItinerary);
     },
   });
 
@@ -287,6 +303,8 @@ export default function Chat() {
             }}
             onItineraryUpdate={(newItinerary) => {
               setGeneratedItinerary(newItinerary);
+              // Update the trip in the database
+              updateTripMutation.mutate(newItinerary);
             }}
           />
         </div>

@@ -24,7 +24,6 @@ interface ItineraryData {
 }
 
 export const generatePDF = async (itinerary: ItineraryData): Promise<void> => {
-  console.log("generatePDF called with itinerary:", JSON.stringify(itinerary, null, 2));
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();

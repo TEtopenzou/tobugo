@@ -107,7 +107,6 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify, onItiner
     // If no tripId, allow free download (for trips created in current session)
     if (!tripId) {
       try {
-        console.log("handleDownloadPDF (free) calling generatePDF with:", JSON.stringify(itinerary, null, 2));
         await generatePDF(itinerary);
         toast({
           title: "PDF descargado",
@@ -137,7 +136,6 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify, onItiner
     // Check if user has purchased
     if (purchaseCheck?.hasPurchased) {
       try {
-        console.log("handleDownloadPDF (paid) calling generatePDF with:", JSON.stringify(itinerary, null, 2));
         await generatePDF(itinerary);
         toast({
           title: "PDF descargado",
