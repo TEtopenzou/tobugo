@@ -379,8 +379,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/ai/optimize-itinerary", async (req, res) => {
     try {
-      const { itinerary, feedback } = req.body;
-      const optimizedItinerary = await optimizeItinerary(itinerary, feedback);
+      const { itinerary, feedback, selectedActivity } = req.body;
+      const optimizedItinerary = await optimizeItinerary(itinerary, feedback, selectedActivity);
       res.json(optimizedItinerary);
     } catch (error) {
       res.status(400).json({ message: "Failed to optimize itinerary", error });
