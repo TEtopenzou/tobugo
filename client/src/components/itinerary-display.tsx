@@ -195,9 +195,9 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify, onItiner
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-[73%_27%] gap-6">
       {/* Main Itinerary Content - Left Side */}
-      <div className="lg:col-span-3 space-y-8">
+      <div className="space-y-8">
         {/* Header Actions */}
         <div className="flex justify-between items-center">
           <div>
@@ -379,55 +379,56 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify, onItiner
       </div>
 
       {/* Modification Panel - Right Side */}
-      <div className="lg:col-span-1">
-        <Card className="sticky top-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center">
-              <Edit className="h-4 w-4 mr-2" />
+      <div>
+        <Card className="sticky top-[20vh] shadow-2xl shadow-primary/10 border-primary/30 bg-card border-2 scale-[1.02] origin-top transition-all duration-300">
+          <CardHeader className="pb-4 bg-primary/5 border-b border-border/50">
+            <CardTitle className="text-base font-bold flex items-center text-primary">
+              <Edit className="h-5 w-5 mr-2" />
               Modificar Itinerario
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Dime qué cambios te gustaría hacer:
+          <CardContent className="space-y-4 pt-5">
+            <p className="text-base text-foreground font-medium">
+              ¿Qué cambios te gustaría hacer?
             </p>
-            <div className="space-y-2">
-              <Input
-                placeholder="Ej: Añadir más tiempo en el museo..."
-                value={modificationText}
-                onChange={(e) => setModificationText(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendModification()}
-                data-testid="input-modification-text"
-                className="text-sm"
-              />
-              <Button
-                onClick={handleSendModification}
-                disabled={!modificationText.trim()}
-                data-testid="button-send-modification"
-                size="sm"
-                className="w-full"
-              >
-                <Send className="h-3 w-3 mr-2" />
-                Enviar
-              </Button>
+            <div className="space-y-3">
+              <div className="relative">
+                <Input
+                  placeholder="Ej: Añadir más tiempo en el museo..."
+                  value={modificationText}
+                  onChange={(e) => setModificationText(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendModification()}
+                  data-testid="input-modification-text"
+                  className="text-base py-5 pr-12 shadow-sm border-primary/20 focus-visible:ring-primary/30"
+                />
+                <Button
+                  onClick={handleSendModification}
+                  disabled={!modificationText.trim()}
+                  data-testid="button-send-modification"
+                  size="icon"
+                  className="absolute right-1.5 top-1.5 h-8 w-8 rounded-md"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="pt-2 border-t border-border">
-              <p className="text-xs text-muted-foreground mb-2">
-                Ejemplos de modificaciones:
+            <div className="pt-2">
+              <p className="text-sm text-foreground/80 mb-3 font-semibold px-1">
+                Sugerencias rápidas:
               </p>
-              <div className="space-y-1">
+              <div className="flex flex-wrap gap-2">
                 {[
-                  "Cambiar el hotel por uno más económico",
-                  "Agregar tiempo libre en la tarde",
-                  "Incluir más restaurantes locales",
-                  "Reducir actividades del día 2"
+                  "Cambiar hotel barato",
+                  "Más tiempo libre",
+                  "Restaurantes locales",
+                  "Menos actividades"
                 ].map((example, index) => (
                   <button
                     key={index}
                     onClick={() => setModificationText(example)}
-                    className="text-xs text-left text-muted-foreground hover:text-foreground transition-colors p-1 rounded text-wrap block w-full hover:bg-muted/50"
+                    className="text-xs font-medium text-foreground/80 hover:text-primary hover:bg-primary/10 bg-muted transition-all px-3 py-2 rounded-lg border border-border/50 hover:border-primary/30"
                   >
-                    • {example}
+                    {example}
                   </button>
                 ))}
               </div>
