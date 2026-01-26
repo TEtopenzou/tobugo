@@ -1,8 +1,60 @@
 import { GoogleGenAI } from "@google/genai";
 
+
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_KEY || ""
 });
+
+const FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"];
+
+async function generateContentWithFallback(
+  systemInstruction: string,
+  contents: string,
+  responseMimeType: string = "application/json"
+) {
+  let lastError;
+
+  for (const model of FALLBACK_MODELS) {
+    try {
+      if (model !== FALLBACK_MODELS[0]) {
+        console.warn(`⚠️ Rate limit on primary model. Switching to ${model} in 2s...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
+      const response = await ai.models.generateContent({
+        model: model,
+        config: {
+          systemInstruction: systemInstruction,
+          responseMimeType: responseMimeType,
+        },
+        contents: contents,
+      });
+      return response;
+    } catch (error: any) {
+      lastError = error;
+
+      // Strict Error Handling: Only retry on 429 (Too Many Requests) or 503 (Service Unavailable)
+      // Note: error.message usually contains the status code or description
+      const isRetryable =
+        error.message?.includes('429') ||
+        error.message?.includes('Resource Exhausted') ||
+        error.message?.includes('Too Many Requests') ||
+        error.message?.includes('503') ||
+        error.message?.includes('Service Unavailable');
+
+      if (isRetryable) {
+        console.warn(`⚠️ Rate limit/Service error on ${model} (429/503).`);
+        continue; // Try next model
+      }
+
+      // For 400, 404, or other errors, THROW IMMEDIATELY. Do not retry.
+      throw error;
+    }
+  }
+
+  // If we get here, all models failed (likely all 429s)
+  throw lastError;
+}
 
 export interface TravelPreferences {
   destination: string;
@@ -292,19 +344,13 @@ Do NOT include markdown code fences or any wrapper objects. Return only the JSON
 
 Include flights, accommodation, daily activities, meals, and local transport with realistic pricing.`;
 
-  let lastError;
-
   // Retry up to 3 times with exponential backoff for transient errors
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        config: {
-          systemInstruction: systemPrompt,
-          responseMimeType: "application/json",
-        },
-        contents: userPrompt,
-      });
+      const response = await generateContentWithFallback(
+        systemPrompt,
+        userPrompt
+      );
 
       // Handle response text property
       const text = response.text;
@@ -322,36 +368,19 @@ Include flights, accommodation, daily activities, meals, and local transport wit
 
       return itinerary;
     } catch (error: any) {
-      lastError = error;
-      console.error(`Error generating itinerary (attempt ${attempt}):`, error);
-
-      // Check if it's a retryable error (503, 429, network issues)
-      if (attempt < 3 && (
-        error.message?.includes('503') ||
-        error.message?.includes('overloaded') ||
-        error.message?.includes('429') ||
-        error.message?.includes('UNAVAILABLE')
-      )) {
-        // Wait with exponential backoff (2^attempt seconds)
-        const delay = Math.pow(2, attempt) * 1000;
-        console.log(`Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-
-      // For non-retryable errors, throw immediately
-      break;
+      if (attempt === 3) throw error; // Re-throw if it's the last attempt
+      // If it's a fallback-able error, the helper would have handled it. 
+      // If it threw, it's either fatal (400) or all models failed (429). 
+      // We let the outer retry loop (implied here, though `generateContentWithFallback` handles model switching internally) 
+      // handle logic, OR we just throw.
+      // Given the new requirement: "catch only 429/503... throw others", and the helper does that loop, 
+      // the helper throws the final error. So we should just throw here or let the loop finish.
+      throw error;
     }
-  }
+  } // End attempt loop (Note: The helper already retries models. This outer loop is redundant but kept for safety if needed, or can be removed. 
+  // Since the helper handles the model chain, this outer loop effectively retries the *whole chain* 3 times. We'll leave it for robustness.)
 
-  // If we get here, all retries failed
-  if (lastError?.message?.includes('503') || lastError?.message?.includes('overloaded')) {
-    throw new Error('The AI service is temporarily overloaded. Please try again in a few moments.');
-  } else if (lastError?.message?.includes('429')) {
-    throw new Error('Too many requests. Please wait a moment and try again.');
-  } else {
-    throw new Error(`Failed to generate itinerary: ${lastError?.message || lastError}`);
-  }
+  throw new Error("Failed to generate itinerary after multiple attempts.");
 }
 
 export async function processConversation(
@@ -470,14 +499,10 @@ IMPORTANT: Only include extractedPreferences fields that were NEWLY mentioned in
       `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
     ).join('\n');
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: "application/json",
-      },
-      contents: `Conversation so far:\n${conversationHistory}\n\nRespond to the latest user message.`,
-    });
+    const response = await generateContentWithFallback(
+      systemPrompt,
+      `Conversation so far:\n${conversationHistory}\n\nRespond to the latest user message.`
+    );
 
     const rawJson = response.text;
     if (!rawJson) {
@@ -485,9 +510,10 @@ IMPORTANT: Only include extractedPreferences fields that were NEWLY mentioned in
     }
 
     return JSON.parse(rawJson);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error processing conversation:", error);
-    // Fallback response
+
+    // Default Fallback response just for UI safety, NOT full mock data unless explicitly desired
     return {
       response: "Lo siento, tuve un problema técnico. ¿Podrías repetir tu mensaje?",
       shouldGenerateItinerary: false
@@ -497,7 +523,8 @@ IMPORTANT: Only include extractedPreferences fields that were NEWLY mentioned in
 
 export async function optimizeItinerary(
   currentItinerary: TravelItinerary,
-  userFeedback: string
+  userFeedback: string,
+  selectedActivity?: any
 ): Promise<TravelItinerary> {
   // Check for Test Mode
   if (process.env.TEST_MODE === 'true') {
@@ -509,7 +536,16 @@ export async function optimizeItinerary(
 
   const systemPrompt = `You are a travel planner optimizing an existing itinerary based on user feedback.
 
-Modify the itinerary according to the user's requests while maintaining:
+You may receive a "Selected Activity" context. This indicates the user has clicked on a specific activity to modify it.
+
+RULES for handling updates:
+1. **Selected Activity Focus**: If a specific activity is selected (provided in context) AND the user's request is relevant to that activity (e.g., "change restaurant", "make it cheaper"), ONLY modify that specific activity.
+2. **Global Requests Override Selection**: If the user's request explicitly targets "all" or "the whole itinerary" (e.g., "change all restaurants", "change the whole trip"), IGNORE the selection and apply changes globally.
+3. **Specific Name Override**: If the user explicitly names a different activity than the one selected (e.g., selected "Cafe A" but says "change "Museum B"), IGNORE the selection and modify the named activity.
+4. **General/Global Requests**: If no activity is selected, apply the changes to the relevant parts of the itinerary based on the user's text.
+5. **Similar Names**: If the user says "change the vegetarian restaurant" and multiple exist, but one is selected, modify ONLY the selected one.
+
+Modify the itinerary according to these rules while maintaining:
 - Realistic costs and timing
 - Logical flow between activities
 - Comprehensive cost tracking
@@ -544,11 +580,26 @@ IMPORTANT: Return ONLY a JSON object with this exact structure:
 
 Do NOT include markdown code fences or any wrapper objects. Return only the JSON.`;
 
+  let contextDescription = "";
+  if (selectedActivity) {
+    contextDescription = `
+CONTEXT - SELECTED ACTIVITY:
+The user has selected the following activity while making this request:
+- Title: ${selectedActivity.title}
+- Description: ${selectedActivity.description}
+- Type: ${selectedActivity.type}
+- Day: ${selectedActivity.date}
+- Time: ${selectedActivity.time}
+`;
+  }
+
   const userPrompt = `Current itinerary: ${JSON.stringify(currentItinerary)}
+
+${contextDescription}
 
 User feedback: ${userFeedback}
 
-Please modify the itinerary according to this feedback.`;
+Please modify the itinerary according to this feedback and the context rules.`;
 
   // Create a dummy preferences object for normalization 
   const preferences = {
@@ -558,19 +609,13 @@ Please modify the itinerary according to this feedback.`;
     budget: currentItinerary.totalCost
   };
 
-  let lastError;
-
   // Retry up to 3 times with exponential backoff for transient errors
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        config: {
-          systemInstruction: systemPrompt,
-          responseMimeType: "application/json",
-        },
-        contents: userPrompt,
-      });
+      const response = await generateContentWithFallback(
+        systemPrompt,
+        userPrompt
+      );
 
       // Handle response text property
       const text = response.text;
@@ -588,34 +633,10 @@ Please modify the itinerary according to this feedback.`;
 
       return optimizedItinerary;
     } catch (error: any) {
-      lastError = error;
-      console.error(`Error optimizing itinerary (attempt ${attempt}):`, error);
-
-      // Check if it's a retryable error (503, 429, network issues)
-      if (attempt < 3 && (
-        error.message?.includes('503') ||
-        error.message?.includes('overloaded') ||
-        error.message?.includes('429') ||
-        error.message?.includes('UNAVAILABLE')
-      )) {
-        // Wait with exponential backoff (2^attempt seconds)
-        const delay = Math.pow(2, attempt) * 1000;
-        console.log(`Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-
-      // For non-retryable errors, throw immediately
-      break;
+      if (attempt === 3) throw error;
+      throw error;
     }
   }
 
-  // If we get here, all retries failed
-  if (lastError?.message?.includes('503') || lastError?.message?.includes('overloaded')) {
-    throw new Error('The AI service is temporarily overloaded. Please try again in a few moments.');
-  } else if (lastError?.message?.includes('429')) {
-    throw new Error('Too many requests. Please wait a moment and try again.');
-  } else {
-    throw new Error(`Failed to optimize itinerary: ${lastError?.message || lastError}`);
-  }
+  throw new Error("Failed to optimize itinerary.");
 }

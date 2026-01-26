@@ -142,12 +142,13 @@ export default function Chat() {
 
   // Optimize itinerary mutation
   const optimizeItineraryMutation = useMutation({
-    mutationFn: async (feedback: string) => {
+    mutationFn: async ({ feedback, selectedActivity }: { feedback: string, selectedActivity?: any }) => {
       if (!generatedItinerary) throw new Error("No itinerary to optimize");
 
       const response = await apiRequest("POST", "/api/ai/optimize-itinerary", {
         itinerary: generatedItinerary,
-        feedback
+        feedback,
+        selectedActivity
       });
       return response.json();
     },
@@ -281,8 +282,8 @@ export default function Chat() {
           <ItineraryDisplay
             itinerary={generatedItinerary}
             tripId={savedTripId || undefined}
-            onModify={(feedback) => {
-              optimizeItineraryMutation.mutate(feedback);
+            onModify={(feedback, selectedActivity) => {
+              optimizeItineraryMutation.mutate({ feedback, selectedActivity });
             }}
             onItineraryUpdate={(newItinerary) => {
               setGeneratedItinerary(newItinerary);

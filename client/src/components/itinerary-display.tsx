@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 interface ItineraryDisplayProps {
   itinerary: any;
   tripId?: string;
-  onModify: (feedback: string) => void;
+  onModify: (feedback: string, selectedActivity?: any) => void;
   onItineraryUpdate?: (itinerary: any) => void;
 }
 
@@ -166,7 +166,21 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify, onItiner
 
   const handleSendModification = () => {
     if (modificationText.trim()) {
-      onModify(modificationText);
+      let activityContext = undefined;
+
+      if (selectedActivity) {
+        const { dayIndex, activityIndex } = selectedActivity;
+        if (itinerary.days[dayIndex] && itinerary.days[dayIndex].activities[activityIndex]) {
+          activityContext = {
+            ...itinerary.days[dayIndex].activities[activityIndex],
+            dayIndex, // Pass indices as well for context if needed
+            activityIndex,
+            date: itinerary.days[dayIndex].date
+          };
+        }
+      }
+
+      onModify(modificationText, activityContext);
       setModificationText("");
       setIsModificationDialogOpen(false);
     }
