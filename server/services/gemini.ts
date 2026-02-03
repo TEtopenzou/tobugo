@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { generateContentFromClaude } from "./claude";
 
 
 const ai = new GoogleGenAI({
@@ -49,11 +50,25 @@ async function generateContentWithFallback(
 
       // For 400, 404, or other errors, THROW IMMEDIATELY. Do not retry.
       throw error;
+
     }
   }
 
   // If we get here, all models failed (likely all 429s)
-  throw lastError;
+  // If we get here, all models failed (likely all 429s)
+  // Try Claude as last resort
+  try {
+    console.log("All Gemini models failed. Attempting fallback to Claude...");
+    return await generateContentFromClaude(systemInstruction, contents);
+  } catch (claudeError) {
+    console.error("Claude fallback also failed:", claudeError);
+    // Throw the original Gemini error to indicate the primary failure source, 
+    // or arguably the Claude error. Let's throw the last Gemini error generally 
+    // but maybe logging both is enough. safely throwing lastError is fine.
+    // However, if I want to bubble up the "Service Unavailable" of the system.
+    throw lastError || claudeError;
+  }
+
 }
 
 export interface TravelPreferences {
