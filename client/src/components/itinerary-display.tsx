@@ -57,6 +57,7 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify, onItiner
   const [modificationText, setModificationText] = useState("");
   const [isModificationDialogOpen, setIsModificationDialogOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -379,63 +380,102 @@ export default function ItineraryDisplay({ itinerary, tripId, onModify, onItiner
       </div>
 
       {/* Modification Panel - Right Side */}
-      <div>
-        <Card className="sticky top-[20vh] shadow-2xl shadow-primary/10 border-primary/30 bg-card border-2 scale-[1.02] origin-top transition-all duration-300">
-          <CardHeader className="pb-4 bg-primary/5 border-b border-border/50">
-            <CardTitle className="text-base font-bold flex items-center text-primary">
-              <Edit className="h-5 w-5 mr-2" />
-              Modificar Itinerario
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-5">
-            <p className="text-base text-foreground font-medium">
-              ¿Qué cambios te gustaría hacer?
-            </p>
-            <div className="space-y-3">
-              <div className="relative">
-                <Input
-                  placeholder="Ej: Añadir más tiempo en el museo..."
-                  value={modificationText}
-                  onChange={(e) => setModificationText(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendModification()}
-                  data-testid="input-modification-text"
-                  className="text-base py-5 pr-12 shadow-sm border-primary/20 focus-visible:ring-primary/30"
-                />
-                <Button
-                  onClick={handleSendModification}
-                  disabled={!modificationText.trim()}
-                  data-testid="button-send-modification"
-                  size="icon"
-                  className="absolute right-1.5 top-1.5 h-8 w-8 rounded-md"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            <div className="pt-2">
-              <p className="text-sm text-foreground/80 mb-3 font-semibold px-1">
-                Sugerencias rápidas:
+      {/* Modification Panel - Right Side */}
+      <>
+        {/* Mobile Toggle Button (FAB) */}
+        <div className="fixed bottom-6 right-6 z-50 lg:hidden">
+          <Button
+            size="lg"
+            className="rounded-full h-14 w-14 shadow-lg"
+            onClick={() => setIsMobileChatOpen(true)}
+          >
+            <Edit className="h-6 w-6" />
+          </Button>
+        </div>
+
+        {/* Chat Panel Container */}
+        <div className={`
+          fixed inset-x-0 bottom-0 z-50 transition-transform duration-300 ease-in-out lg:static lg:transform-none lg:z-auto
+          ${isMobileChatOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}
+        `}>
+          {/* Mobile Overlay/Backdrop (optional, if we want to click outside to close) */}
+          {isMobileChatOpen && (
+            <div
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm lg:hidden -z-10"
+              onClick={() => setIsMobileChatOpen(false)}
+            />
+          )}
+
+          <Card className={`
+            shadow-2xl shadow-primary/10 border-primary/30 bg-card border-2 transition-all duration-300
+            ${isMobileChatOpen ? 'mx-4 mb-4' : ''}
+            lg:sticky lg:top-[20vh] lg:scale-[1.02] lg:origin-top lg:mx-0 lg:mb-0
+          `}>
+            <CardHeader className="pb-4 bg-primary/5 border-b border-border/50 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base font-bold flex items-center text-primary">
+                <Edit className="h-5 w-5 mr-2" />
+                Modificar Itinerario
+              </CardTitle>
+              {/* Mobile Close Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden h-8 w-8 -mr-2"
+                onClick={() => setIsMobileChatOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-5">
+              <p className="text-base text-foreground font-medium">
+                ¿Qué cambios te gustaría hacer?
               </p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  "Cambiar hotel barato",
-                  "Más tiempo libre",
-                  "Restaurantes locales",
-                  "Menos actividades"
-                ].map((example, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setModificationText(example)}
-                    className="text-xs font-medium text-foreground/80 hover:text-primary hover:bg-primary/10 bg-muted transition-all px-3 py-2 rounded-lg border border-border/50 hover:border-primary/30"
+              <div className="space-y-3">
+                <div className="relative">
+                  <Input
+                    placeholder="Ej: Añadir más tiempo en el museo..."
+                    value={modificationText}
+                    onChange={(e) => setModificationText(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendModification()}
+                    data-testid="input-modification-text"
+                    className="text-base py-5 pr-12 shadow-sm border-primary/20 focus-visible:ring-primary/30"
+                  />
+                  <Button
+                    onClick={handleSendModification}
+                    disabled={!modificationText.trim()}
+                    data-testid="button-send-modification"
+                    size="icon"
+                    className="absolute right-1.5 top-1.5 h-8 w-8 rounded-md"
                   >
-                    {example}
-                  </button>
-                ))}
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              <div className="pt-2">
+                <p className="text-sm text-foreground/80 mb-3 font-semibold px-1">
+                  Sugerencias rápidas:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "Cambiar hotel barato",
+                    "Más tiempo libre",
+                    "Restaurantes locales",
+                    "Menos actividades"
+                  ].map((example, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setModificationText(example)}
+                      className="text-xs font-medium text-foreground/80 hover:text-primary hover:bg-primary/10 bg-muted transition-all px-3 py-2 rounded-lg border border-border/50 hover:border-primary/30"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
