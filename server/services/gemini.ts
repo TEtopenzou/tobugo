@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { generateContentFromClaude } from "./claude";
 
 
 const ai = new GoogleGenAI({
@@ -14,46 +15,80 @@ async function generateContentWithFallback(
 ) {
   let lastError;
 
-  for (const model of FALLBACK_MODELS) {
-    try {
-      if (model !== FALLBACK_MODELS[0]) {
-        console.warn(`⚠️ Rate limit on primary model. Switching to ${model} in 2s...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+  const geminiEnabled = process.env.GEMINI_API_ON !== 'false'; // Default to true if not set
+  const claudeEnabled = process.env.CLAUDE_API_ON === 'true'; // Default to false if not set
+
+  if (geminiEnabled) {
+    for (const model of FALLBACK_MODELS) {
+      try {
+        if (model !== FALLBACK_MODELS[0]) {
+          console.warn(`⚠️ Rate limit on primary model. Switching to ${model} in 2s...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        const response = await ai.models.generateContent({
+          model: model,
+          config: {
+            systemInstruction: systemInstruction,
+            responseMimeType: responseMimeType,
+          },
+          contents: contents,
+        });
+        return response;
+      } catch (error: any) {
+        lastError = error;
+
+        // Strict Error Handling: Only retry on 429 (Too Many Requests) or 503 (Service Unavailable)
+        // Note: error.message usually contains the status code or description
+        const isRetryable =
+          error.message?.includes('429') ||
+          error.message?.includes('Resource Exhausted') ||
+          error.message?.includes('Too Many Requests') ||
+          error.message?.includes('503') ||
+          error.message?.includes('Service Unavailable');
+
+        if (isRetryable) {
+          console.warn(`⚠️ Rate limit/Service error on ${model} (429/503).`);
+          continue; // Try next model
+        }
+
+        // For 400, 404, or other errors, THROW IMMEDIATELY. Do not retry.
+        // Unless Gemini is disabled, in which case we might want to fallback? 
+        // Actually, if Gemini throws 400, it's a bad request, Claude isn't likely to fix it unless it's model specific.
+        // But if we want robust fallback, we might consider falling through. 
+        // Current logic throws immediately. We'll keep it as is.
+        throw error;
       }
-
-      const response = await ai.models.generateContent({
-        model: model,
-        config: {
-          systemInstruction: systemInstruction,
-          responseMimeType: responseMimeType,
-        },
-        contents: contents,
-      });
-      return response;
-    } catch (error: any) {
-      lastError = error;
-
-      // Strict Error Handling: Only retry on 429 (Too Many Requests) or 503 (Service Unavailable)
-      // Note: error.message usually contains the status code or description
-      const isRetryable =
-        error.message?.includes('429') ||
-        error.message?.includes('Resource Exhausted') ||
-        error.message?.includes('Too Many Requests') ||
-        error.message?.includes('503') ||
-        error.message?.includes('Service Unavailable');
-
-      if (isRetryable) {
-        console.warn(`⚠️ Rate limit/Service error on ${model} (429/503).`);
-        continue; // Try next model
-      }
-
-      // For 400, 404, or other errors, THROW IMMEDIATELY. Do not retry.
-      throw error;
     }
+  } else {
+    console.log("Gemini API is disabled via GEMINI_API_ON.");
   }
 
   // If we get here, all models failed (likely all 429s)
-  throw lastError;
+  // If we get here, all models failed (likely all 429s) or Gemini was disabled.
+
+  if (claudeEnabled) {
+    // Try Claude as last resort
+    try {
+      console.log("Attempting fallback to Claude...");
+      return await generateContentFromClaude(systemInstruction, contents);
+    } catch (claudeError) {
+      console.error("Claude fallback also failed:", claudeError);
+      // Throw the original Gemini error to indicate the primary failure source, 
+      // or arguably the Claude error. Let's throw the last Gemini error generally 
+      // but maybe logging both is enough. safely throwing lastError is fine.
+      // However, if I want to bubble up the "Service Unavailable" of the system.
+      throw lastError || claudeError;
+    }
+  }
+
+  // If Claude is disabled and Gemini failed (or was disabled), throw error.
+  if (lastError) {
+    throw lastError;
+  } else {
+    throw new Error("No AI models available (Gemini disabled/failed and Claude disabled).");
+  }
+
 }
 
 export interface TravelPreferences {
