@@ -133,6 +133,7 @@ export default function Landing() {
               <div className="flex items-center justify-center space-x-2 mb-4">
                 <Plane className="text-2xl text-primary" />
                 <span className="text-xl font-bold">TobuGo</span>
+                <Plane className="text-2xl invisible" aria-hidden="true" />
               </div>
               <p className="text-muted-foreground max-w-xs" data-testid="text-footer-description">
                 La plataforma definitiva para planificar viajes inteligentes con IA y comunidad de viajeros.
