@@ -21,18 +21,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      const existingUser = await storage.getUserByUsername(req.body.username);
+      const { username, password, email } = req.body;
+
+      // Validaciones del servidor
+      if (!username || !password || !email) {
+        return res.status(400).json({ message: "Todos los campos son obligatorios" });
+      }
+
+      if (username.length > 20) {
+        return res.status(400).json({ message: "El nombre no puede exceder los 20 caracteres" });
+      }
+
+      const nameRegex = /^[a-zA-Z\s]*$/;
+      if (!nameRegex.test(username)) {
+        return res.status(400).json({ message: "El nombre no puede contener caracteres especiales" });
+      }
+
+      if (!email.includes("@")) {
+        return res.status(400).json({ message: "Email inválido" });
+      }
+
+      const existingUser = await storage.getUserByUsername(username);
       if (existingUser) {
         return res.status(400).json({ message: "El nombre de usuario ya existe" });
       }
 
-      const hashedPassword = await hashPassword(req.body.password);
+      const hashedPassword = await hashPassword(password);
 
       const newUser = await storage.createUser({
         ...req.body,
         password: hashedPassword,
-        email: req.body.email || `${req.body.username}@example.com`,
-        firstName: req.body.username,
+        email: email, // Usamos el email enviado
+        firstName: username, // Mapeamos nombre a firstName también por si acaso
         lastName: "",
         profileImageUrl: "",
       });
