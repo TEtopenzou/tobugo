@@ -117,18 +117,8 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            {/* Column 1: Brand - Left Aligned on Desktop */}
-            <div className="flex flex-col items-center md:items-start text-center md:text-left">
-              <div className="flex items-center space-x-2 mb-4">
-                <Plane className="text-2xl text-primary" />
-                <span className="text-xl font-bold">TobuGo</span>
-              </div>
-              <p className="text-muted-foreground max-w-xs" data-testid="text-footer-description">
-                La plataforma definitiva para planificar viajes inteligentes con IA y comunidad de viajeros.
-              </p>
-            </div>
 
-            {/* Column 2: Empresa - Centered on Desktop */}
+            {/* Column 1: Empresa - Centered on Desktop */}
             <div className="flex flex-col items-center text-center">
               <h3 className="font-semibold mb-4" data-testid="text-footer-company">Empresa</h3>
               <ul className="space-y-2 text-muted-foreground">
@@ -138,8 +128,20 @@ export default function Landing() {
               </ul>
             </div>
 
+            {/* Column 2: Brand - Left Aligned on Desktop */}
+            <div className="flex flex-col items-center md:items-center text-center md:text-center">
+              <div className="flex items-center justify-center space-x-2 mb-4">
+                <Plane className="text-2xl text-primary" />
+                <span className="text-xl font-bold">TobuGo</span>
+                <Plane className="text-2xl invisible" aria-hidden="true" />
+              </div>
+              <p className="text-muted-foreground max-w-xs" data-testid="text-footer-description">
+                La plataforma definitiva para planificar viajes inteligentes con IA y comunidad de viajeros.
+              </p>
+            </div>
+
             {/* Column 3: Social - Right Aligned on Desktop */}
-            <div className="flex flex-col items-center md:items-end text-center md:text-right">
+            <div className="flex flex-col items-center md:items-center text-center md:text-center">
               <h3 className="font-semibold mb-4" data-testid="text-footer-social">Síguenos</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li><a href="#" className="hover:text-primary transition-colors" data-testid="link-footer-twitter">Twitter</a></li>

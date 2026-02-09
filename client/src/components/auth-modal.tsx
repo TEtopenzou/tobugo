@@ -18,11 +18,13 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
   const { toast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
 
   // Mutation para Login
   const loginMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/login", { username, password });
+      // Enviamos email y password. El backend esperará 'email' o 'username' mapeado a email.
+      const res = await apiRequest("POST", "/api/login", { email, password });
       return res.json();
     },
     onSuccess: (user) => {
@@ -35,10 +37,10 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
       }
     },
     onError: (error: Error) => {
-      toast({ 
-        title: "Error de acceso", 
-        description: "Usuario o contraseña incorrectos", 
-        variant: "destructive" 
+      toast({
+        title: "Error de acceso",
+        description: "Email o contraseña incorrectos",
+        variant: "destructive"
       });
     },
   });
@@ -46,7 +48,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
   // Mutation para Registro
   const registerMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/register", { username, password });
+      // Enviamos email y mapeamos "Nombre" a username
+      const res = await apiRequest("POST", "/api/register", { username, password, email });
       return res.json();
     },
     onSuccess: (user) => {
@@ -59,24 +62,58 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
       }
     },
     onError: (error: Error) => {
-      toast({ 
-        title: "Error de registro", 
-        description: "El usuario ya existe o hubo un problema.", 
-        variant: "destructive" 
+      toast({
+        title: "Error de registro",
+        description: "El nombre ya existe o hubo un problema.",
+        variant: "destructive"
       });
     },
   });
 
+  const validateName = (name: string) => {
+    if (name.length > 20) return false;
+    // Permite letras mayúsculas, minúsculas y espacios. No caracteres especiales.
+    const regex = /^[a-zA-Z\s]*$/;
+    return regex.test(name);
+  };
+
+  const validateEmail = (email: string) => {
+    // Al menos un caracter, luego @, luego al menos un caracter. Simple check de existencia de @
+    return email.includes("@") && email.length > 3;
+  };
+
   const handleSubmit = (isLogin: boolean) => {
-    if (!username || !password) {
-      toast({ title: "Campos requeridos", description: "Por favor ingresa usuario y contraseña", variant: "destructive" });
-      return;
-    }
-    
     if (isLogin) {
+      if (!email || !password) {
+        toast({ title: "Campos requeridos", description: "Por favor ingresa email y contraseña", variant: "destructive" });
+        return;
+      }
       loginMutation.mutate();
     } else {
+      if (!username || !password || !email) {
+        toast({ title: "Campos requeridos", description: "Por favor completa todos los campos", variant: "destructive" });
+        return;
+      }
+      // Validaciones extra para registro
+      if (!validateEmail(email)) {
+        toast({ title: "Email inválido", description: "El email debe contener '@'", variant: "destructive" });
+        return;
+      }
+      if (!validateName(username)) {
+        // Esta validación debería prevenirse en el input, pero por seguridad chequeamos aquí también
+        toast({ title: "Nombre inválido", description: "El nombre no puede tener caracteres especiales ni más de 20 caracteres", variant: "destructive" });
+        return;
+      }
+
       registerMutation.mutate();
+    }
+  };
+
+  // Handler para input de nombre con validación en tiempo real
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (validateName(val)) {
+      setUsername(val);
     }
   };
 
@@ -86,17 +123,17 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         <DialogHeader>
           <DialogTitle className="text-center">Bienvenido a TobuGo</DialogTitle>
         </DialogHeader>
-        
+
         <Tabs defaultValue="login" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
             <TabsTrigger value="register">Registrarse</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="login" className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Usuario</Label>
-              <Input id="username" placeholder="tu_usuario" value={username} onChange={(e) => setUsername(e.target.value)} />
+              <Label htmlFor="login-email">Email</Label>
+              <Input id="login-email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
@@ -106,11 +143,15 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
               {loginMutation.isPending ? "Entrando..." : "Entrar"}
             </Button>
           </TabsContent>
-          
+
           <TabsContent value="register" className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="reg-username">Usuario</Label>
-              <Input id="reg-username" placeholder="Elige un usuario" value={username} onChange={(e) => setUsername(e.target.value)} />
+              <Label htmlFor="reg-email">Email</Label>
+              <Input id="reg-email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reg-username">Nombre</Label>
+              <Input id="reg-username" placeholder="Tu nombre" value={username} onChange={handleNameChange} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="reg-password">Contraseña</Label>

@@ -28,7 +28,7 @@ async function comparePassword(supplied: string, stored: string) {
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 semana
   const pgStore = connectPg(session);
-  
+
   // Asegurarnos de que DATABASE_URL existe
   if (!process.env.DATABASE_URL) {
     console.warn("DATABASE_URL not set, session persistence will fail");
@@ -40,7 +40,7 @@ export function getSession() {
     ttl: sessionTtl,
     tableName: "sessions",
   });
-  
+
   return session({
     secret: process.env.SESSION_SECRET || "dev-secret-key",
     store: sessionStore,
@@ -49,8 +49,8 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       // Secure false en desarrollo para localhost, true en producción
-      secure: process.env.NODE_ENV === "production", 
-      sameSite: 'lax', 
+      secure: process.env.NODE_ENV === "production",
+      sameSite: 'lax',
       maxAge: sessionTtl,
     },
   });
@@ -64,15 +64,15 @@ export async function setupAuth(app: Express) {
 
   // Configurar Estrategia Local (Usuario y Contraseña)
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        const user = await storage.getUserByUsername(username);
+        const user = await storage.getUserByEmail(email);
         if (!user || !user.password) {
-          return done(null, false, { message: "Usuario o contraseña incorrectos" });
+          return done(null, false, { message: "Credenciales incorrectas" });
         } else {
           const isValid = await comparePassword(password, user.password);
           if (!isValid) {
-            return done(null, false, { message: "Usuario o contraseña incorrectos" });
+            return done(null, false, { message: "Credenciales incorrectas" });
           } else {
             return done(null, user);
           }

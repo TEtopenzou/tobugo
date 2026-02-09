@@ -303,7 +303,8 @@ export const insertSavedTripSchema = createInsertSchema(savedTrips).omit({
 export const insertPurchaseSchema = createInsertSchema(purchases).omit({
   id: true,
   createdAt: true,
-  paidAt: true,
+}).extend({
+  paidAt: z.coerce.date().optional(),
 });
 
 // Types
