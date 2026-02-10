@@ -119,7 +119,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-[400px] max-h-[90vh] overflow-y-auto transition-all max-sm:focus-within:top-[25%]">
         <DialogHeader>
           <DialogTitle className="text-center">Bienvenido a TobuGo</DialogTitle>
         </DialogHeader>
