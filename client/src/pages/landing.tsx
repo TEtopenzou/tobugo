@@ -2,8 +2,24 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Plane } from "lucide-react";
 import { VideoHero } from "@/components/video-hero";
+import { useState } from "react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import AuthModal from "@/components/auth-modal";
 
 export default function Landing() {
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [, setLocation] = useLocation();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  const handleStartPlanning = () => {
+    if (isAuthenticated) {
+      setLocation("/chat");
+    } else {
+      setIsAuthModalOpen(true);
+    }
+  };
+
   return (
     <div>
       {/* Hero Section with Video Background */}
@@ -73,13 +89,14 @@ export default function Landing() {
               size="lg"
               variant="secondary"
               className="text-lg px-8 py-4"
-              onClick={() => window.location.href = "/api/login"}
+              onClick={handleStartPlanning}
+              disabled={isLoading}
               data-testid="button-cta-login"
             >
               Iniciar Sesión para Planificar
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button
+            {/* <Button
               size="lg"
               variant="outline"
               className="text-lg px-8 py-4 border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary"
@@ -87,7 +104,7 @@ export default function Landing() {
               data-testid="button-explore-community"
             >
               Explorar Comunidad
-            </Button>
+            </Button> */}
           </div>
         </div>
       </section>
@@ -157,6 +174,11 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={() => setLocation("/chat")}
+      />
     </div>
   );
 }

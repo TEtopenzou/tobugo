@@ -7,12 +7,77 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { X } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess?: () => void; // Nueva prop opcional
+  onLoginSuccess?: () => void;
 }
+
+// Componente helper para inputs con label flotante en móvil
+interface FloatingLabelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  id: string;
+  onClear?: () => void;
+}
+
+const FloatingLabelInput = ({ label, id, value, onClear, className, ...props }: FloatingLabelInputProps) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const hasValue = value && String(value).length > 0;
+  const isFloating = isFocused || hasValue;
+
+  return (
+    <div className={`relative ${className}`}>
+      {/* 
+         Label behavior:
+         Desktop (sm:): Standard label above input (static).
+         Mobile (max-sm:): Absolute positioned. 
+           - Default: centered vertically in input.
+           - Active/HasValue: moves to top border.
+      */}
+      <Label
+        htmlFor={id}
+        className={`
+          max-sm:absolute max-sm:left-3 max-sm:transition-all max-sm:duration-200 max-sm:pointer-events-none max-sm:z-10
+          sm:block sm:mb-2
+          ${isFloating
+            ? "max-sm:-top-2 max-sm:bg-background max-sm:px-1 max-sm:text-xs max-sm:text-primary"
+            : "max-sm:top-1/2 max-sm:-translate-y-1/2 max-sm:text-muted-foreground"
+          }
+        `}
+      >
+        {label}
+      </Label>
+      <div className="relative">
+        <Input
+          id={id}
+          value={value}
+          {...props}
+          onFocus={(e) => {
+            setIsFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            props.onBlur?.(e);
+          }}
+          className="max-sm:h-12 max-sm:pt-2 max-sm:placeholder:text-transparent" // Taller input + hide placeholder on mobile
+        />
+        {/* Clear button - only visible on mobile when there is text */}
+        {hasValue && onClear && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground sm:hidden"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
   const { toast } = useToast();
@@ -131,13 +196,26 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
           </TabsList>
 
           <TabsContent value="login" className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
-              <Input id="login-email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <div className="space-y-4 sm:space-y-2">
+              <FloatingLabelInput
+                id="login-email"
+                label="Email"
+                type="email"
+                placeholder="tu@email.com" // Placeholder will show only on desktop ideally, or conflict with floating label. Floating label usually hides placeholder until focused? But our implementation keeps label.
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onClear={() => setEmail("")}
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <div className="space-y-4 sm:space-y-2">
+              <FloatingLabelInput
+                id="password"
+                label="Contraseña"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onClear={() => setPassword("")}
+              />
             </div>
             <Button className="w-full" onClick={() => handleSubmit(true)} disabled={loginMutation.isPending}>
               {loginMutation.isPending ? "Entrando..." : "Entrar"}
@@ -145,17 +223,36 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
           </TabsContent>
 
           <TabsContent value="register" className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="reg-email">Email</Label>
-              <Input id="reg-email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <div className="space-y-4 sm:space-y-2">
+              <FloatingLabelInput
+                id="reg-email"
+                label="Email"
+                type="email"
+                placeholder="tu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onClear={() => setEmail("")}
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="reg-username">Nombre</Label>
-              <Input id="reg-username" placeholder="Tu nombre" value={username} onChange={handleNameChange} />
+            <div className="space-y-4 sm:space-y-2">
+              <FloatingLabelInput
+                id="reg-username"
+                label="Nombre"
+                placeholder="Tu nombre"
+                value={username}
+                onChange={handleNameChange}
+                onClear={() => setUsername("")}
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="reg-password">Contraseña</Label>
-              <Input id="reg-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <div className="space-y-4 sm:space-y-2">
+              <FloatingLabelInput
+                id="reg-password"
+                label="Contraseña"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onClear={() => setPassword("")}
+              />
             </div>
             <Button className="w-full" onClick={() => handleSubmit(false)} disabled={registerMutation.isPending}>
               {registerMutation.isPending ? "Creando cuenta..." : "Crear Cuenta"}

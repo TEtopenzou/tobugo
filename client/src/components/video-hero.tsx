@@ -65,7 +65,7 @@ export function VideoHero() {
           data-testid="hero-video"
           data-active-index={currentVideoIndex}
         />
-        
+
         {/* Professional Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-ocean-deep/80 via-ocean-primary/60 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
@@ -98,8 +98,8 @@ export function VideoHero() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-coral hover:bg-coral/90 text-white px-8 h-14 text-lg font-semibold shadow-xl shadow-coral/20 transition-all hover:shadow-2xl hover:shadow-coral/30 hover:scale-105 min-w-[240px]"
                 data-testid="button-start-planning"
                 onClick={handleStartPlanning}
@@ -108,7 +108,7 @@ export function VideoHero() {
                 Comenzar a Planificar
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Link href="/community">
+              {/* <Link href="/community">
                 <Button 
                   size="lg" 
                   variant="outline"
@@ -118,7 +118,7 @@ export function VideoHero() {
                   Explorar Comunidad
                   <Users className="ml-2 h-5 w-5" />
                 </Button>
-              </Link>
+              </Link> */}
             </div>
 
             {/* Social Proof / Trust Signals */}
@@ -154,7 +154,7 @@ export function VideoHero() {
                 <div className="text-3xl md:text-4xl font-bold text-white mb-1">150+</div>
                 <div className="text-sm text-white/70">Destinos cubiertos</div>
               </div>
-              
+
               <div className="text-center" data-testid="kpi-itineraries">
                 <div className="flex items-center justify-center mb-2">
                   <Sparkles className="h-6 w-6 text-coral" />
@@ -162,7 +162,7 @@ export function VideoHero() {
                 <div className="text-3xl md:text-4xl font-bold text-white mb-1">2,500+</div>
                 <div className="text-sm text-white/70">Itinerarios creados</div>
               </div>
-              
+
               <div className="text-center" data-testid="kpi-travelers">
                 <div className="flex items-center justify-center mb-2">
                   <Users className="h-6 w-6 text-coral" />
@@ -170,7 +170,7 @@ export function VideoHero() {
                 <div className="text-3xl md:text-4xl font-bold text-white mb-1">1,200+</div>
                 <div className="text-sm text-white/70">Viajeros registrados</div>
               </div>
-              
+
               <div className="text-center" data-testid="kpi-rating">
                 <div className="flex items-center justify-center mb-2">
                   <Star className="h-6 w-6 text-amber-400 fill-amber-400" />
@@ -188,11 +188,10 @@ export function VideoHero() {
         {videoSources.map((_, index: number) => (
           <button
             key={index}
-            className={`h-1 rounded-full transition-all duration-300 ${
-              index === currentVideoIndex 
-                ? 'bg-white w-8' 
+            className={`h-1 rounded-full transition-all duration-300 ${index === currentVideoIndex
+                ? 'bg-white w-8'
                 : 'bg-white/50 w-1 hover:bg-white/70'
-            }`}
+              }`}
             onClick={() => {
               setCurrentVideoIndex(index);
               setIsVideoLoaded(false);
@@ -204,10 +203,10 @@ export function VideoHero() {
       </div>
 
       {/* Componente Modal de Autenticación para este botón específico */}
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
+      <AuthModal
+        isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        onLoginSuccess={() => setLocation("/chat")} 
+        onLoginSuccess={() => setLocation("/chat")}
       />
     </section>
   );
