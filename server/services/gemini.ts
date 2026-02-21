@@ -476,7 +476,13 @@ export async function processConversation(
 
 
 
+  const todayDate = new Date();
+  const currentDateStr = todayDate.toISOString().split('T')[0];
+  const currentYear = todayDate.getFullYear();
+
   const systemPrompt = `You are a friendly travel planning assistant. Your goal is to gather travel preferences in two steps.
+
+Current Date context: Today is ${currentDateStr} (Year: ${currentYear}).
 
 ALREADY COLLECTED PREFERENCES: ${JSON.stringify(currentPreferences)}
 
@@ -506,7 +512,10 @@ Guidelines:
 - REMEMBER: Check ALREADY COLLECTED PREFERENCES first before asking
 - DO NOT ask for information you already have - acknowledge it instead!
 - Extract all NEW information provided by the user
-- Convert date mentions to YYYY-MM-DD format when possible
+- Convert date mentions to YYYY-MM-DD format when possible using the Current Date context (${currentDateStr}).
+- IMPORTANT DATE LOGIC:
+  1. If the user inputs a start date (month and day) that is AFTER OR EQUAL TO today's month and day, assume the trip is for the CURRENT year (${currentYear}).
+  2. If the user inputs a start date (month and day) that is STRICTLY BEFORE today's month and day, assume the trip is for the NEXT year (${currentYear + 1}).
 - If user gives duration without specific dates, it's fine - the system handles this
 - Only move to STEP 2 after getting answers to the first 4 questions
 - Only suggest generating itinerary when you have ALL 5 answers
