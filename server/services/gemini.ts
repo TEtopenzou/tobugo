@@ -330,6 +330,8 @@ export async function generateItinerary(preferences: TravelPreferences): Promise
   const systemPrompt = `You are a professional travel planner AI. Create detailed, realistic travel itineraries with accurate cost estimates.
 
 Key requirements:
+- Generate the entire itinerary and all text/descriptions in standard Spanish (español estándar).
+- You may keep destination-specific native terms (like specific places, restaurants, or local dishes) in their original language.
 - Provide realistic cost estimates in USD
 - Include specific times and locations
 - Balance activities throughout each day
@@ -590,6 +592,7 @@ RULES for handling updates:
 5. **Similar Names**: If the user says "change the vegetarian restaurant" and multiple exist, but one is selected, modify ONLY the selected one.
 
 Modify the itinerary according to these rules while maintaining:
+- Generate all new or modified text in standard Spanish (español estándar). Destination-specific terms can remain in their original language.
 - Realistic costs and timing
 - Logical flow between activities
 - Comprehensive cost tracking
