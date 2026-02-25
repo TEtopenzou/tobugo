@@ -88,13 +88,13 @@ export default function Landing() {
             <Button
               size="lg"
               variant="secondary"
-              className="text-lg px-8 py-4"
+              className="text-lg px-8 py-4 sm:text-4xl sm:px-16 sm:py-8"
               onClick={handleStartPlanning}
               disabled={isLoading}
               data-testid="button-cta-login"
             >
               Iniciar Sesión para Planificar
-              <ArrowRight className="ml-2 h-5 w-5" />
+              <ArrowRight className="ml-2 h-5 w-5 sm:ml-4 sm:h-10 sm:w-10" />
             </Button>
             {/* <Button
               size="lg"

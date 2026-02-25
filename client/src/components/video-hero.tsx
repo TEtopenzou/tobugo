@@ -100,13 +100,13 @@ export function VideoHero() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
               <Button
                 size="lg"
-                className="bg-coral hover:bg-coral/90 text-white px-8 h-14 text-lg font-semibold shadow-xl shadow-coral/20 transition-all hover:shadow-2xl hover:shadow-coral/30 hover:scale-105 min-w-[240px]"
+                className="bg-coral hover:bg-coral/90 text-white px-8 h-14 text-lg sm:px-16 sm:py-5 sm:h-auto sm:text-4xl font-semibold shadow-xl shadow-coral/20 transition-all hover:shadow-2xl hover:shadow-coral/30 hover:scale-105 min-w-[240px] sm:min-w-[480px]"
                 data-testid="button-start-planning"
                 onClick={handleStartPlanning}
                 disabled={isLoading}
               >
                 Comenzar a Planificar
-                <ArrowRight className="ml-2 h-5 w-5" />
+                <ArrowRight className="ml-2 h-5 w-5 sm:ml-4 sm:h-10 sm:w-10" />
               </Button>
               {/* <Link href="/community">
                 <Button 
@@ -189,8 +189,8 @@ export function VideoHero() {
           <button
             key={index}
             className={`h-1 rounded-full transition-all duration-300 ${index === currentVideoIndex
-                ? 'bg-white w-8'
-                : 'bg-white/50 w-1 hover:bg-white/70'
+              ? 'bg-white w-8'
+              : 'bg-white/50 w-1 hover:bg-white/70'
               }`}
             onClick={() => {
               setCurrentVideoIndex(index);
