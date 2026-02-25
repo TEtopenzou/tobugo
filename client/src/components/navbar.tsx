@@ -45,48 +45,45 @@ export default function Navbar() {
                 TobuGo
               </span>
             </Link>
-            
+
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-1">
-              <Link 
-                href="/chat" 
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isActive('/chat') 
-                    ? 'bg-ocean-primary/10 dark:bg-ocean-primary-dark/10 text-ocean-primary dark:text-[hsl(var(--ocean-primary-dark))]' 
-                    : 'text-sand-700 dark:text-slate-300 hover:bg-sand-100 dark:hover:bg-slate-800 hover:text-ocean-primary dark:hover:text-[hsl(var(--ocean-primary-dark))]'
-                }`}
+              <Link
+                href="/chat"
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive('/chat')
+                  ? 'bg-ocean-primary/10 dark:bg-ocean-primary-dark/10 text-ocean-primary dark:text-[hsl(var(--ocean-primary-dark))]'
+                  : 'text-sand-700 dark:text-slate-300 hover:bg-sand-100 dark:hover:bg-slate-800 hover:text-ocean-primary dark:hover:text-[hsl(var(--ocean-primary-dark))]'
+                  }`}
                 data-testid="link-chat"
               >
                 Planificar
               </Link>
-              <Link 
-                href="/community" 
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isActive('/community') 
-                    ? 'bg-ocean-primary/10 dark:bg-ocean-primary-dark/10 text-ocean-primary dark:text-[hsl(var(--ocean-primary-dark))]' 
+              {/* <Link
+                href="/community"
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive('/community')
+                    ? 'bg-ocean-primary/10 dark:bg-ocean-primary-dark/10 text-ocean-primary dark:text-[hsl(var(--ocean-primary-dark))]'
                     : 'text-sand-700 dark:text-slate-300 hover:bg-sand-100 dark:hover:bg-slate-800 hover:text-ocean-primary dark:hover:text-[hsl(var(--ocean-primary-dark))]'
-                }`}
+                  }`}
                 data-testid="link-community"
               >
                 Comunidad
-              </Link>
-              <Link 
-                href="/itinerarios" 
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isActive('/itinerarios') 
-                    ? 'bg-ocean-primary/10 dark:bg-ocean-primary-dark/10 text-ocean-primary dark:text-[hsl(var(--ocean-primary-dark))]' 
-                    : 'text-sand-700 dark:text-slate-300 hover:bg-sand-100 dark:hover:bg-slate-800 hover:text-ocean-primary dark:hover:text-[hsl(var(--ocean-primary-dark))]'
-                }`}
+              </Link> */}
+              <Link
+                href="/itinerarios"
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive('/itinerarios')
+                  ? 'bg-ocean-primary/10 dark:bg-ocean-primary-dark/10 text-ocean-primary dark:text-[hsl(var(--ocean-primary-dark))]'
+                  : 'text-sand-700 dark:text-slate-300 hover:bg-sand-100 dark:hover:bg-slate-800 hover:text-ocean-primary dark:hover:text-[hsl(var(--ocean-primary-dark))]'
+                  }`}
                 data-testid="link-trips"
               >
                 Mis Viajes
               </Link>
             </div>
-            
+
             {/* Right Section */}
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              
+
               {/* Authentication Section */}
               {isLoading ? (
                 <div className="w-9 h-9 rounded-full bg-sand-100 dark:bg-slate-700 animate-pulse" />
@@ -103,8 +100,8 @@ export default function Navbar() {
                       {user.firstName || user.username || user.email}
                     </span>
                   </div>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="icon"
                     className="h-9 w-9 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400"
                     onClick={handleLogout}
@@ -115,7 +112,7 @@ export default function Navbar() {
                   </Button>
                 </div>
               ) : (
-                <Button 
+                <Button
                   className="hidden sm:flex h-10 bg-ocean-primary dark:bg-[hsl(var(--ocean-primary-dark))] hover:opacity-90 text-white font-semibold shadow-sm"
                   onClick={() => setIsAuthModalOpen(true)}
                   data-testid="button-login"
@@ -124,7 +121,7 @@ export default function Navbar() {
                   Iniciar Sesión
                 </Button>
               )}
-              
+
               {/* Mobile Menu Sheet */}
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
@@ -146,10 +143,10 @@ export default function Navbar() {
                       </span>
                     </SheetTitle>
                   </SheetHeader>
-                  
+
                   <div className="flex flex-col gap-2 mt-6">
                     {/* Mobile Links ... (sin cambios) */}
-                    
+
                     {/* Mobile Authentication Section */}
                     <div className="mt-4 pt-4 border-t border-sand-200 dark:border-slate-700">
                       {isLoading ? (
@@ -172,9 +169,9 @@ export default function Navbar() {
                               </p>
                             </div>
                           </div>
-                          <Button 
-                            variant="outline" 
-                            className="w-full justify-start min-h-[44px] border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950" 
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start min-h-[44px] border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
                             onClick={() => {
                               handleLogout();
                               setIsMobileMenuOpen(false);
@@ -186,8 +183,8 @@ export default function Navbar() {
                           </Button>
                         </div>
                       ) : (
-                        <Button 
-                          className="w-full min-h-[44px] bg-ocean-primary dark:bg-[hsl(var(--ocean-primary-dark))] hover:opacity-90 text-white font-semibold" 
+                        <Button
+                          className="w-full min-h-[44px] bg-ocean-primary dark:bg-[hsl(var(--ocean-primary-dark))] hover:opacity-90 text-white font-semibold"
                           onClick={() => {
                             setIsAuthModalOpen(true);
                             setIsMobileMenuOpen(false);
@@ -206,7 +203,7 @@ export default function Navbar() {
           </div>
         </div>
       </nav>
-      
+
       {/* Componente Modal de Autenticación */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </>

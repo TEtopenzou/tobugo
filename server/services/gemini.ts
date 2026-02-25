@@ -330,6 +330,8 @@ export async function generateItinerary(preferences: TravelPreferences): Promise
   const systemPrompt = `You are a professional travel planner AI. Create detailed, realistic travel itineraries with accurate cost estimates.
 
 Key requirements:
+- Generate the entire itinerary and all text/descriptions in standard Spanish (español estándar).
+- You may keep destination-specific native terms (like specific places, restaurants, or local dishes) in their original language.
 - Provide realistic cost estimates in USD
 - Include specific times and locations
 - Balance activities throughout each day
@@ -476,7 +478,13 @@ export async function processConversation(
 
 
 
+  const todayDate = new Date();
+  const currentDateStr = todayDate.toISOString().split('T')[0];
+  const currentYear = todayDate.getFullYear();
+
   const systemPrompt = `You are a friendly travel planning assistant. Your goal is to gather travel preferences in two steps.
+
+Current Date context: Today is ${currentDateStr} (Year: ${currentYear}).
 
 ALREADY COLLECTED PREFERENCES: ${JSON.stringify(currentPreferences)}
 
@@ -506,7 +514,10 @@ Guidelines:
 - REMEMBER: Check ALREADY COLLECTED PREFERENCES first before asking
 - DO NOT ask for information you already have - acknowledge it instead!
 - Extract all NEW information provided by the user
-- Convert date mentions to YYYY-MM-DD format when possible
+- Convert date mentions to YYYY-MM-DD format when possible using the Current Date context (${currentDateStr}).
+- IMPORTANT DATE LOGIC:
+  1. If the user inputs a start date (month and day) that is AFTER OR EQUAL TO today's month and day, assume the trip is for the CURRENT year (${currentYear}).
+  2. If the user inputs a start date (month and day) that is STRICTLY BEFORE today's month and day, assume the trip is for the NEXT year (${currentYear + 1}).
 - If user gives duration without specific dates, it's fine - the system handles this
 - Only move to STEP 2 after getting answers to the first 4 questions
 - Only suggest generating itinerary when you have ALL 5 answers
@@ -581,6 +592,7 @@ RULES for handling updates:
 5. **Similar Names**: If the user says "change the vegetarian restaurant" and multiple exist, but one is selected, modify ONLY the selected one.
 
 Modify the itinerary according to these rules while maintaining:
+- Generate all new or modified text in standard Spanish (español estándar). Destination-specific terms can remain in their original language.
 - Realistic costs and timing
 - Logical flow between activities
 - Comprehensive cost tracking
