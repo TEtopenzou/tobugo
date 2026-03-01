@@ -47,7 +47,7 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden md:flex items-center gap-32">
               <Link
                 href="/chat"
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive('/chat')

@@ -7,6 +7,30 @@ import { ArrowRight, Plus, MapPin, Calendar, DollarSign, Users, Home, ShoppingBa
 import { useAuth } from "@/hooks/useAuth";
 import PurchaseHistory from "@/components/purchase-history";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+
+interface Trip {
+  id: string;
+  title: string;
+  description: string | null;
+  destination: string | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  budget: number | null;
+  currency: string | null;
+  isPublic: boolean;
+  itinerary: any;
+  preferences: any;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -21,6 +45,20 @@ export default function Dashboard() {
       setActiveTab("purchases");
     }
   }, [location]);
+
+  // Fetch recent trips
+  const { data: userTrips, isLoading: tripsLoading } = useQuery<Trip[]>({
+    queryKey: ['/api/trips/user'],
+  });
+
+  const formatDate = (date: Date | null) => {
+    if (!date) return "Fechas no especificadas";
+    return new Date(date).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,8 +104,8 @@ export default function Dashboard() {
               {/* Quick Actions */}
               <section className="py-12 bg-background">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                  <div className="grid md:grid-cols-3 gap-6 mb-12">
-                    <Card className="hover:shadow-lg transition-shadow" data-testid="card-new-trip">
+                  <div className="flex flex-col md:flex-row md:justify-center gap-6 md:gap-8 mb-12">
+                    <Card className="hover:shadow-lg transition-shadow w-full md:w-[480px]" data-testid="card-new-trip">
                       <CardHeader className="text-center">
                         <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                           <Plus className="w-6 h-6 text-primary" />
@@ -87,12 +125,12 @@ export default function Dashboard() {
                       </CardContent>
                     </Card>
 
-                    <Card className="hover:shadow-lg transition-shadow" data-testid="card-community">
+                    {/* <Card className="hover:shadow-lg transition-shadow" data-testid="card-community">
                       <CardHeader className="text-center">
                         <div className="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                           <Users className="w-6 h-6 text-secondary" />
                         </div>
-                        <CardTitle>Comunidad</CardTitle>
+                        <CardTitle>Comunidad - Próximamente</CardTitle>
                         <CardDescription>
                           Conecta con otros viajeros y comparte experiencias
                         </CardDescription>
@@ -105,9 +143,9 @@ export default function Dashboard() {
                           </Button>
                         </Link>
                       </CardContent>
-                    </Card>
+                    </Card> */}
 
-                    <Card className="hover:shadow-lg transition-shadow" data-testid="card-my-trips">
+                    <Card className="hover:shadow-lg transition-shadow w-full md:w-[480px]" data-testid="card-my-trips">
                       <CardHeader className="text-center">
                         <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
                           <MapPin className="w-6 h-6 text-accent-foreground" />
@@ -132,32 +170,87 @@ export default function Dashboard() {
               <section className="py-12 bg-muted/30">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <h2 className="text-2xl font-bold mb-8" data-testid="text-recent-activity">Actividad Reciente</h2>
-                  
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <Card data-testid="card-no-trips">
-                      <CardHeader>
-                        <CardTitle className="text-lg">¡Empieza tu primer viaje!</CardTitle>
-                        <CardDescription>
-                          Aún no tienes viajes planificados. ¡Es el momento perfecto para empezar!
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <Link href="/chat">
-                          <Button size="sm" data-testid="button-start-first-trip">
-                            Planificar Primer Viaje
-                          </Button>
-                        </Link>
-                      </CardContent>
-                    </Card>
-                  </div>
+
+                  {tripsLoading ? (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {[...Array(4)].map((_, i) => (
+                        <Card key={i} className="animate-pulse h-48 bg-card/50" />
+                      ))}
+                    </div>
+                  ) : userTrips && userTrips.length > 0 ? (
+                    <div className="px-10">
+                      <Carousel
+                        opts={{
+                          align: "start",
+                          loop: false,
+                        }}
+                        className="w-full"
+                      >
+                        <CarouselContent className="-ml-2 md:-ml-4">
+                          {userTrips.map((trip) => (
+                            <CarouselItem key={trip.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3 xl:basis-1/4">
+                              <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
+                                <CardHeader className="flex-none">
+                                  <CardTitle className="text-lg line-clamp-2">
+                                    {trip.title || "Viaje sin título"}
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col flex-1 justify-between">
+                                  <div className="space-y-2 mb-4">
+                                    {trip.destination && (
+                                      <div className="flex items-center text-sm text-muted-foreground line-clamp-1">
+                                        <MapPin className="min-w-4 w-4 h-4 mr-2" />
+                                        <span className="truncate">{trip.destination}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center text-sm text-muted-foreground">
+                                      <Calendar className="min-w-4 w-4 h-4 mr-2" />
+                                      <span className="truncate">
+                                        {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <Link href={`/itinerarios`}>
+                                    <Button variant="outline" className="w-full" size="sm">
+                                      Ver Detalles
+                                    </Button>
+                                  </Link>
+                                </CardContent>
+                              </Card>
+                            </CarouselItem>
+                          ))}
+                        </CarouselContent>
+                        <CarouselPrevious className="disabled:hidden" />
+                        <CarouselNext className="disabled:hidden" />
+                      </Carousel>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <Card data-testid="card-no-trips">
+                        <CardHeader>
+                          <CardTitle className="text-lg">¡Empieza tu primer viaje!</CardTitle>
+                          <CardDescription>
+                            Aún no tienes viajes planificados. ¡Es el momento perfecto para empezar!
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Link href="/chat">
+                            <Button size="sm" data-testid="button-start-first-trip">
+                              Planificar Primer Viaje
+                            </Button>
+                          </Link>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
                 </div>
               </section>
 
               {/* Travel Inspiration */}
-              <section className="py-12 bg-background">
+              {/* <section className="py-12 bg-background">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <h2 className="text-2xl font-bold mb-8" data-testid="text-inspiration">Inspiración para Viajes</h2>
-                  
+
                   <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <Card className="overflow-hidden hover:shadow-lg transition-shadow" data-testid="card-destination-europe">
                       <div className="h-32 bg-gradient-to-br from-blue-500 to-purple-600"></div>
@@ -212,7 +305,7 @@ export default function Dashboard() {
                     </Card>
                   </div>
                 </div>
-              </section>
+              </section> */}
             </TabsContent>
 
             {/* Purchases Tab Content */}

@@ -26,15 +26,12 @@ export default function Landing() {
       <VideoHero />
 
       {/* Features Section */}
-      <section className="py-20 bg-background">
+      <section className="py-14 md:py-20 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4" data-testid="text-features-title">
+          <div className="text-center mb-11 md:mb-16">
+            <h2 className="text-3xl md:text-6xl font-bold mb-3 md:mb-4" data-testid="text-features-title">
               ¿Por qué elegir TobuGo?
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto" data-testid="text-features-subtitle">
-              Nuestra plataforma combina inteligencia artificial avanzada con la sabiduría de viajeros experimentados
-            </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -66,7 +63,7 @@ export default function Landing() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-4">Comunidad de Viajeros</h3>
+              <h3 className="text-xl font-semibold mb-4">Comunidad de Viajeros - Próximamente</h3>
               <p className="text-muted-foreground">
                 Conecta con otros viajeros, comparte experiencias y obtén recomendaciones de primera mano
               </p>
@@ -88,7 +85,7 @@ export default function Landing() {
             <Button
               size="lg"
               variant="secondary"
-              className="text-lg px-8 py-4 sm:text-4xl sm:px-16 sm:py-8"
+              className="text-lg w-[85%] mx-auto py-[26px] sm:w-auto sm:mx-0 sm:text-4xl sm:px-16 sm:py-10"
               onClick={handleStartPlanning}
               disabled={isLoading}
               data-testid="button-cta-login"
