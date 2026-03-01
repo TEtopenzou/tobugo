@@ -39,7 +39,7 @@ interface ReviewWithUser {
 export default function Community() {
   const [activeTab, setActiveTab] = useState("itinerarios");
   const { toast } = useToast();
-  
+
   // Filter states
   const [filters, setFilters] = useState({
     destination: "",
@@ -113,15 +113,15 @@ export default function Community() {
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (response.status === 409) {
         throw new Error('Ya has marcado esta reseña como útil');
       }
-      
+
       if (!response.ok) {
         throw new Error('Error al marcar la reseña como útil');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -142,7 +142,7 @@ export default function Community() {
     const now = new Date();
     const diffInMs = now.getTime() - new Date(date).getTime();
     const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) return "Hoy";
     if (diffInDays === 1) return "Ayer";
     if (diffInDays < 7) return `Hace ${diffInDays} días`;
@@ -158,7 +158,7 @@ export default function Community() {
           Comunidad de Viajeros
         </h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto" data-testid="text-community-subtitle">
-          Descubre itinerarios reales y obtén consejos de otros viajeros
+          Conecta con otros viajeros, comparte experiencias y obtén recomendaciones de primera mano
         </p>
       </div>
 
@@ -237,7 +237,7 @@ export default function Community() {
               <Input
                 placeholder="Buscar destino..."
                 value={filters.destination}
-                onChange={(e) => setFilters({...filters, destination: e.target.value})}
+                onChange={(e) => setFilters({ ...filters, destination: e.target.value })}
                 className="pl-10"
                 data-testid="input-search-destination"
               />
@@ -254,7 +254,7 @@ export default function Community() {
             {Object.values(filters).some(v => v) && (
               <Button
                 variant="ghost"
-                onClick={() => setFilters({destination: "", minBudget: "", maxBudget: "", minDuration: "", maxDuration: "", travelStyle: ""})}
+                onClick={() => setFilters({ destination: "", minBudget: "", maxBudget: "", minDuration: "", maxDuration: "", travelStyle: "" })}
                 className="shrink-0"
                 data-testid="button-clear-filters"
               >
@@ -273,7 +273,7 @@ export default function Community() {
                     type="number"
                     placeholder="$500"
                     value={filters.minBudget}
-                    onChange={(e) => setFilters({...filters, minBudget: e.target.value})}
+                    onChange={(e) => setFilters({ ...filters, minBudget: e.target.value })}
                     data-testid="input-min-budget"
                   />
                 </div>
@@ -283,7 +283,7 @@ export default function Community() {
                     type="number"
                     placeholder="$5000"
                     value={filters.maxBudget}
-                    onChange={(e) => setFilters({...filters, maxBudget: e.target.value})}
+                    onChange={(e) => setFilters({ ...filters, maxBudget: e.target.value })}
                     data-testid="input-max-budget"
                   />
                 </div>
@@ -293,7 +293,7 @@ export default function Community() {
                     type="number"
                     placeholder="3"
                     value={filters.minDuration}
-                    onChange={(e) => setFilters({...filters, minDuration: e.target.value})}
+                    onChange={(e) => setFilters({ ...filters, minDuration: e.target.value })}
                     data-testid="input-min-duration"
                   />
                 </div>
@@ -303,14 +303,14 @@ export default function Community() {
                     type="number"
                     placeholder="21"
                     value={filters.maxDuration}
-                    onChange={(e) => setFilters({...filters, maxDuration: e.target.value})}
+                    onChange={(e) => setFilters({ ...filters, maxDuration: e.target.value })}
                     data-testid="input-max-duration"
                   />
                 </div>
               </div>
               <div className="mt-4">
                 <label className="text-sm font-medium mb-2 block">Tipo de Viaje</label>
-                <Select value={filters.travelStyle} onValueChange={(value) => setFilters({...filters, travelStyle: value})}>
+                <Select value={filters.travelStyle} onValueChange={(value) => setFilters({ ...filters, travelStyle: value })}>
                   <SelectTrigger data-testid="select-travel-style">
                     <SelectValue placeholder="Seleccionar estilo..." />
                   </SelectTrigger>
@@ -405,15 +405,15 @@ export default function Community() {
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
                           <p className="font-medium" data-testid={`text-reviewer-name-${review.id}`}>
-                            {review.user.firstName && review.user.lastName 
+                            {review.user.firstName && review.user.lastName
                               ? `${review.user.firstName} ${review.user.lastName}`
                               : `Usuario #${review.userId.slice(-6)}`
                             }
                           </p>
                           <div className="flex items-center space-x-1">
                             {Array.from({ length: 5 }).map((_, i) => (
-                              <Star 
-                                key={i} 
+                              <Star
+                                key={i}
                                 className={`text-sm ${i < review.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'}`}
                               />
                             ))}
@@ -433,10 +433,10 @@ export default function Community() {
                             <MessageCircle className="h-3 w-3 mr-1" />
                             Responder
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-auto p-0" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto p-0"
                             onClick={() => helpfulMutation.mutate(review.id)}
                             disabled={helpfulMutation.isPending}
                             data-testid={`button-helpful-${review.id}`}
