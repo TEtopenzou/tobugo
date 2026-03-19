@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowRight, Plus, MapPin, Calendar, DollarSign, Users, Home, ShoppingBag } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import PurchaseHistory from "@/components/purchase-history";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
