@@ -5,14 +5,14 @@ import { z } from "zod";
 import { insertTripSchema, insertChatSessionSchema, insertReviewSchema, insertSavedTripSchema, insertPlaceReviewSchema } from "@shared/schema";
 import { generateItinerary, processConversation, optimizeItinerary, type TravelPreferences } from "./services/gemini";
 import { ObjectPermission } from "./objectAcl";
-import { setupAuth, isAuthenticated, hashPassword } from "./auth"; // Importamos hashPassword y auth correcto
+// import { setupAuth, isAuthenticated, hashPassword } from "./auth"; // Removed auth
 import passport from "passport"; // Necesario para las rutas de login
 import { ObjectStorageService } from "./objectStorage";
 import { createPaymentPreference, getPaymentInfo } from "./mercadopago";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Auth middleware
-  await setupAuth(app);
+  // Removed: await setupAuth(app); // No authentication required(app);
 
   // Initialize object storage service
   const objectStorage = new ObjectStorageService();
