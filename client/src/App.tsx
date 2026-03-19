@@ -24,7 +24,7 @@ function LoadingScreen() {
                         <p className="text-muted-foreground" data-testid="text-loading">Cargando...</p>p>
                 </div>div>
           </div>div>
-        );
+        </div>);
 }
 
 function Router() {
