@@ -1,17 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
-import { getQueryFn } from "@/lib/queryClient";
 
 export function useAuth() {
-  const { data: user, isLoading } = useQuery<User>({
-    queryKey: ["/api/auth/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-    retry: false,
-  });
+    // No authentication checks - all users are "logged in"
+  // This is a mock hook that returns a default authenticated user
+  const mockUser: User = {
+        id: "anonymous",
+        username: "Guest User",
+        email: "guest@tobugo.local",
+  };
 
   return {
-    user,
-    isLoading,
-    isAuthenticated: !!user,
+        user: mockUser,
+        isLoading: false,
+        isAuthenticated: true,
   };
 }
