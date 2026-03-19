@@ -7,12 +7,10 @@ import { Plane, Menu, X, LogOut, User, Sparkles } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient"; // Import apiRequest
-import AuthModal from "@/components/auth-modal"; // Import AuthModal
 
 export default function Navbar() {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // State para el modal
   const { user, isAuthenticated, isLoading } = useAuth();
 
   const isActive = (path: string) => location === path;
@@ -204,8 +202,6 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Componente Modal de Autenticación */}
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </>
   );
 }
