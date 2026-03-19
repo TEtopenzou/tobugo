@@ -20,10 +20,10 @@ function LoadingScreen() {
     return (
           <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-center">
-                        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>div>
+                        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                         <p className="text-muted-foreground" data-testid="text-loading">Cargando...</p>p>
-                </div>div>
-          </div>div>
+                </div>
+          </div>
         </div>);
 }
 
@@ -51,9 +51,8 @@ function Router() {
                         <Route path="/payment/pending" component={PaymentPending} />
                         
                   {/* 404 page */}
-                        <Route component={NotFound} />
-                </Switch>Switch>
-          </div>div>
+                        <Route component={NotFound} />                </Switch>
+          </div>
         );
 }
 
@@ -64,9 +63,9 @@ function App() {
                         <TooltipProvider>
                                   <Toaster />
                                   <Router />
-                        </TooltipProvider>TooltipProvider>
-                </ThemeProvider>ThemeProvider>
-          </QueryClientProvider>QueryClientProvider>
+                        </Switch>
+                </ThemeProvider>
+          </QueryClientProvider>
         );
 }
 
