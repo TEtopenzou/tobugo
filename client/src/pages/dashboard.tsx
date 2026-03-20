@@ -36,7 +36,7 @@ export default function Dashboard() {
   const [location] = useLocation();
   const [activeTab, setActiveTab] = useState("home");
 
-  // Check URL params for tab
+//  // Check URL params for tab
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get("tab");
