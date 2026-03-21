@@ -18,8 +18,6 @@ export default function Navbar() {
     window.location.href = "/"; // Redirigir al home
   };
 
-  const getUserInitials = () => {
-    if (!user) return "U";
     const firstName = user.firstName || user.username || ""; // Fallback a username si firstName es null
     const lastName = user.lastName || "";
     return (firstName.charAt(0) + (lastName ? lastName.charAt(0) : "")).toUpperCase() || "U";
