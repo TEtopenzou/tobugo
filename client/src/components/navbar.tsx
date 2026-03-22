@@ -18,12 +18,7 @@ export default function Navbar() {
     window.location.href = "/"; // Redirigir al home
   };
 
-    const firstName = user.firstName || user.username || ""; // Fallback a username si firstName es null
-    const lastName = user.lastName || "";
-    return (firstName.charAt(0) + (lastName ? lastName.charAt(0) : "")).toUpperCase() || "U";
-  };
 
-  return (
     <>
       <nav className="bg-white dark:bg-slate-900 border-b border-sand-200 dark:border-slate-700 sticky top-0 z-50 backdrop-blur-sm bg-white/95 dark:bg-slate-900/95">
         <div className="max-w-7xl mx-auto px-6">
@@ -77,8 +72,9 @@ export default function Navbar() {
             <div className="flex items-center gap-3">
               <ThemeToggle />
 
-              {/* Authentication Section */}
-              {isLoading ? (
+<Button className="h-9 w-9 rounded-lg bg-ocean-primary dark:bg-ocean-primary" data-testid="button-iniciar-sesion">
+              Iniciar Sesión
+</Button>Button></Button>              {isLoading ? (
                 <div className="w-9 h-9 rounded-full bg-sand-100 dark:bg-slate-700 animate-pulse" />
               ) : isAuthenticated && user ? (
                 <div className="hidden sm:flex items-center gap-3">
