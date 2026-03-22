@@ -32,12 +32,12 @@ function App() {
                                                                     <Route path="/payment/failure" component={PaymentFailure} />
                                                                     <Route path="/payment/pending" component={PaymentPending} />
                                                                     <Route component={NotFound} />
-                                                      </Switch>Switch>
+                                                      </Switch
                                           </div>div>
-                                </TooltipProvider>TooltipProvider>
-                        </ThemeProvider>ThemeProvider>
-              </QueryClientProvider>QueryClientProvider>
+                                </TooltipProvider>
+                        </ThemeProvider>
+              </QueryClientProvider>
             );
 }
 
-export default App;</ThemeProvider>
+export default App;
